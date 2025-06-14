@@ -321,6 +321,9 @@ export const combat_system = (() => {
         options[correct].classList.add('correct');
         this._AddCombatLog('Wrong answer! The monster attacks you!');
         this._DamagePlayer(20);
+        
+        // Trigger monster attack animation
+        this._TriggerMonsterAttack();
       }
       
       this._playerTurn = false;
@@ -328,6 +331,8 @@ export const combat_system = (() => {
       // Check for combat end
       setTimeout(() => {
         if (this._currentMonster && this._currentMonster._health <= 0) {
+          // Kill the monster in the game world
+          this._KillMonster();
           this.Broadcast({
             topic: 'combat.end',
             playerWon: true
