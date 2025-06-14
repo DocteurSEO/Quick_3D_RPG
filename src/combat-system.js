@@ -698,6 +698,114 @@ export const combat_system = (() => {
       }
     }
 
+    _ShowHackEffect() {
+      // Create hacking visual effect overlay
+      const hackOverlay = document.createElement('div');
+      hackOverlay.id = 'hack-effect-overlay';
+      hackOverlay.innerHTML = `
+        <div class="hack-lines">
+          <div class="hack-line">📶 CONNEXION ÉTABLIE...</div>
+          <div class="hack-line">💻 ACCÈS SYSTÈME...</div>
+          <div class="hack-line">⚠️ INTRUSION DÉTECTÉE!</div>
+          <div class="hack-line">🔓 SÉCURITÉ COMPROMISE</div>
+        </div>
+        <div class="binary-rain">
+          <span>01001000</span>
+          <span>01000001</span>
+          <span>01000011</span>
+          <span>01001011</span>
+        </div>
+      `;
+      
+      hackOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        color: #00ff41;
+        font-family: 'Courier New', monospace;
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        animation: hackFlash 1.5s ease-out;
+        pointer-events: none;
+      `;
+      
+      // Add hack effect styles if not exists
+      if (!document.querySelector('#hackEffectStyles')) {
+        const style = document.createElement('style');
+        style.id = 'hackEffectStyles';
+        style.textContent = `
+          @keyframes hackFlash {
+            0% { opacity: 0; }
+            20% { opacity: 1; background: rgba(255, 0, 0, 0.3); }
+            40% { opacity: 0.8; background: rgba(0, 255, 65, 0.2); }
+            60% { opacity: 1; background: rgba(0, 0, 255, 0.2); }
+            80% { opacity: 0.6; background: rgba(255, 255, 0, 0.1); }
+            100% { opacity: 0; }
+          }
+          
+          .hack-lines {
+            text-align: center;
+            margin-bottom: 20px;
+          }
+          
+          .hack-line {
+            font-size: 18px;
+            margin: 5px 0;
+            text-shadow: 0 0 10px #00ff41;
+            animation: typewriter 0.3s ease-in;
+          }
+          
+          .hack-line:nth-child(1) { animation-delay: 0s; }
+          .hack-line:nth-child(2) { animation-delay: 0.3s; }
+          .hack-line:nth-child(3) { animation-delay: 0.6s; }
+          .hack-line:nth-child(4) { animation-delay: 0.9s; }
+          
+          .binary-rain {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            opacity: 0.7;
+          }
+          
+          .binary-rain span {
+            animation: binaryFall 1.5s linear infinite;
+          }
+          
+          .binary-rain span:nth-child(1) { animation-delay: 0s; }
+          .binary-rain span:nth-child(2) { animation-delay: 0.2s; }
+          .binary-rain span:nth-child(3) { animation-delay: 0.4s; }
+          .binary-rain span:nth-child(4) { animation-delay: 0.6s; }
+          
+          @keyframes typewriter {
+            0% { opacity: 0; transform: translateY(-10px); }
+            100% { opacity: 1; transform: translateY(0); }
+          }
+          
+          @keyframes binaryFall {
+            0% { transform: translateY(-20px); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(20px); opacity: 0; }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      document.body.appendChild(hackOverlay);
+      
+      // Remove effect after animation
+      setTimeout(() => {
+        if (hackOverlay.parentNode) {
+          hackOverlay.parentNode.removeChild(hackOverlay);
+        }
+      }, 1500);
+    }
+
     _ShowFloatingDamage(damage, target) {
       const floatingText = document.createElement('div');
       floatingText.textContent = `-${damage}`;
@@ -756,6 +864,9 @@ export const combat_system = (() => {
 
     _DamagePlayer(damage) {
       this._playerHealth = Math.max(0, this._playerHealth - damage);
+      
+      // Add hack effect when robot damages player
+      this._ShowHackEffect();
       
       // Add damage animation
       const playerHealthBar = document.getElementById('player-health');
@@ -1171,32 +1282,81 @@ export const combat_system = (() => {
     }
 
     _ShowRobotTurnIndicator() {
-      // Add visual indicator that it's robot's turn
+      // Add visual indicator that it's robot's turn with hacking theme
       const indicator = document.createElement('div');
       indicator.id = 'robot-turn-indicator';
-      indicator.innerHTML = '🤖 Tour du Robot...';
+      indicator.innerHTML = `
+        <div class="hack-container">
+          <div class="wifi-icon">📶</div>
+          <div class="hack-text">🤖 INJECTION DE CODE...</div>
+          <div class="code-stream">01101001 01101110 01101010...</div>
+        </div>
+      `;
       indicator.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
-        background: linear-gradient(135deg, #4a90e2, #357abd);
-        color: white;
-        padding: 10px 20px;
-        border-radius: 25px;
+        background: linear-gradient(135deg, #0f4c75, #3282b8, #0f4c75);
+        color: #00ff41;
+        padding: 15px 25px;
+        border-radius: 10px;
         font-weight: bold;
         z-index: 9999;
-        box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3);
-        animation: robotPulse 1s infinite alternate;
+        box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        border: 2px solid #00ff41;
+        animation: hackingPulse 0.8s infinite alternate;
+        font-family: 'Courier New', monospace;
+        min-width: 300px;
       `;
       
-      // Add animation if not exists
+      // Add hacking animations if not exists
       if (!document.querySelector('#robotTurnStyles')) {
         const style = document.createElement('style');
         style.id = 'robotTurnStyles';
         style.textContent = `
-          @keyframes robotPulse {
-            0% { transform: scale(1); opacity: 0.8; }
-            100% { transform: scale(1.05); opacity: 1; }
+          @keyframes hackingPulse {
+            0% { 
+              transform: scale(1); 
+              box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+              border-color: #00ff41;
+            }
+            100% { 
+              transform: scale(1.02); 
+              box-shadow: 0 0 30px rgba(0, 255, 65, 0.6);
+              border-color: #00ff88;
+            }
+          }
+          
+          @keyframes codeScroll {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+          }
+          
+          .hack-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+          }
+          
+          .wifi-icon {
+            font-size: 20px;
+            animation: hackingPulse 0.5s infinite alternate;
+          }
+          
+          .hack-text {
+            font-size: 14px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #00ff41;
+          }
+          
+          .code-stream {
+            font-size: 10px;
+            opacity: 0.7;
+            overflow: hidden;
+            white-space: nowrap;
+            animation: codeScroll 3s linear infinite;
+            color: #00aa33;
           }
           @keyframes robotSelection {
               0% { background-color: rgba(231, 76, 60, 0.2); }
