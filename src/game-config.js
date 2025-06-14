@@ -15,6 +15,10 @@ const game_config = (() => {
       healthPerLevel: 20,        // +20 HP par niveau
       statPointsPerLevel: 10,    // 10 points à répartir par niveau
       
+      // Bonus par point d'amélioration
+      damagePerPoint: 5,         // +5 dégâts par point investi
+      healPerPoint: 3,           // +3 soins par point investi
+      
       // XP et niveaux
       baseXPToNextLevel: 100,
       xpMultiplierPerLevel: 1.5, // XP requis * 1.5 à chaque niveau
@@ -208,3 +212,6 @@ const game_config = (() => {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = game_config;
 }
+
+// Export ES6 pour les modules
+export { game_config };

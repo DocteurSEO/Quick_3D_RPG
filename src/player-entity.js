@@ -195,7 +195,7 @@ export const player_entity = (() => {
         if (this._target) {
           const time = Date.now() * 0.002;
           this._target.position.y = 2.0 + Math.sin(time) * 0.5;
-          this._target.rotation.y += timeInSeconds * 0.5;
+          // Removed automatic rotation during combat
         }
         return;
       }
@@ -207,7 +207,7 @@ export const player_entity = (() => {
       if (this._target) {
         const time = Date.now() * 0.002;
         this._target.position.y = 2.0 + Math.sin(time) * 0.5; // Float higher with more movement
-        this._target.rotation.y += timeInSeconds * 0.5; // Gentle rotation while idle
+        // Removed automatic rotation - player should only rotate based on input
       }
 
       // HARDCODED

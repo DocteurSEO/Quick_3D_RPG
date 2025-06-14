@@ -1,7 +1,9 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.118.1/build/three.module.js';
 import {entity} from './entity.js';
+import {game_config} from './game-config.js';
 
 export const combat_system = (() => {
+  const {GameConfig} = game_config;
 
   class CombatSystem extends entity.Component {
     constructor(params) {
@@ -92,11 +94,21 @@ export const combat_system = (() => {
       this._usedQuestions = new Set();
       
       this._currentQuiz = null;
-      this._playerHealth = 100;
-      this._playerMaxHealth = 100;
-      this._playerXP = 0;
+      
+      // Configuration du joueur basée sur game-config.js
       this._playerLevel = 1;
-      this._playerXPToNextLevel = 100; // XP needed for next level
+      this._playerXP = 0;
+      this._playerDamageBonus = 0;  // Points ajoutés aux dégâts
+      this._playerHealBonus = 0;    // Points ajoutés aux soins
+      
+      // Calcul des stats basées sur la configuration
+      this._playerMaxHealth = GameConfig.formulas.playerMaxHealth(this._playerLevel);
+      this._playerHealth = this._playerMaxHealth;
+      this._playerXPToNextLevel = GameConfig.formulas.xpToNextLevel(this._playerLevel);
+      
+      // Système de progression
+      this._pendingLevelUp = false;
+      this._availableUpgradePoints = 0;
       
       // UI will be initialized when combat starts
       this._keydownHandler = null;
@@ -310,6 +322,12 @@ export const combat_system = (() => {
       
       this._isInCombat = true;
       this._currentMonster = message.monster;
+      
+      // Recalculer la santé du monstre selon la configuration (50% plus faible que le joueur)
+      const newMonsterHealth = GameConfig.formulas.enemyHealth(this._playerLevel);
+      this._currentMonster._maxHealth = newMonsterHealth;
+      this._currentMonster._health = newMonsterHealth;
+      console.log('🔄 Monster health recalculated:', this._currentMonster._health, '/', this._currentMonster._maxHealth);
       this._playerTurn = true;
       this._isAnimating = false;
       
@@ -920,25 +938,15 @@ export const combat_system = (() => {
     }
 
     _CalculatePlayerDamage() {
-      // Base damage increases with level
-      const baseDamage = 20;
-      const levelBonus = (this._playerLevel - 1) * 5;
-      return baseDamage + levelBonus;
+      return GameConfig.formulas.playerDamage(this._playerLevel, this._playerDamageBonus);
     }
 
     _CalculateMonsterDamage() {
-      // Monster damage scales with player level
-      const baseDamage = 15;
-      const levelScaling = Math.floor((this._playerLevel - 1) * 3);
-      return baseDamage + levelScaling;
+      return GameConfig.formulas.enemyDamage(this._playerLevel, this._playerDamageBonus);
     }
 
     _CalculateXPReward() {
-      // XP reward based on monster level/difficulty
-      const baseXP = 30;
-      const monsterLevel = this._GetMonsterLevel();
-      const levelBonus = (monsterLevel - 1) * 10;
-      return baseXP + levelBonus;
+      return GameConfig.formulas.xpReward(this._playerLevel);
     }
 
     _GetMonsterLevel() {
@@ -981,17 +989,23 @@ export const combat_system = (() => {
       // Increase level
       this._playerLevel++;
       
-      // Calculate new XP requirement (increases by 50 each level)
-      this._playerXPToNextLevel = 100 + (this._playerLevel - 1) * 50;
+      // Calculate new XP requirement using config
+      this._playerXPToNextLevel = GameConfig.formulas.xpToNextLevel(this._playerLevel);
       
       // Set remaining XP
       this._playerXP = remainingXP;
       
-      // Increase player stats
-      this._playerMaxHealth += 20;
-      this._playerHealth = this._playerMaxHealth; // Full heal on level up
+      // Recalculate max health based on new level
+      const oldMaxHealth = this._playerMaxHealth;
+      this._playerMaxHealth = GameConfig.formulas.playerMaxHealth(this._playerLevel);
+      const healthIncrease = this._playerMaxHealth - oldMaxHealth;
+      this._playerHealth += healthIncrease; // Add the health increase to current health
       
-      // Show level up notification
+      // Add upgrade points
+      this._availableUpgradePoints += GameConfig.progression.pointsPerLevel;
+      this._pendingLevelUp = true;
+      
+      // Show level up notification with upgrade choice
       this._ShowLevelUpNotification();
       
       // Trigger level up effect
@@ -1001,6 +1015,10 @@ export const combat_system = (() => {
       this._UpdateHealthBars();
       
       console.log(`🎉 LEVEL UP! Now level ${this._playerLevel}`);
+      console.log(`💎 You have ${this._availableUpgradePoints} upgrade points to spend!`);
+      
+      // Show upgrade menu
+      this._ShowUpgradeMenu();
       
       // Check if there's still enough XP for another level
       if (this._playerXP >= this._playerXPToNextLevel) {
@@ -1460,10 +1478,7 @@ export const combat_system = (() => {
     }
 
     _CalculateRobotDamage() {
-      // Robot damage scales with player level but is slightly weaker
-      const baseDamage = 18;
-      const levelScaling = Math.floor((this._playerLevel - 1) * 4);
-      return baseDamage + levelScaling;
+      return GameConfig.formulas.enemyDamage(this._playerLevel, this._playerDamageBonus);
     }
 
     _TriggerMonsterAttack() {
@@ -1887,8 +1902,8 @@ export const combat_system = (() => {
       console.log('💚 Player uses heal action');
       this._isAnimating = true;
       
-      // Heal player for 20 HP
-      const healAmount = 20;
+      // Calcul des soins basé sur la configuration
+      const healAmount = GameConfig.formulas.playerHeal(this._playerLevel, this._playerHealBonus);
       const oldHealth = this._playerHealth;
       this._playerHealth = Math.min(this._playerMaxHealth, this._playerHealth + healAmount);
       const actualHeal = this._playerHealth - oldHealth;
@@ -2029,6 +2044,219 @@ export const combat_system = (() => {
       setTimeout(() => {
         this._PlayDynamicSound(783.99, 0.3, 0.6); // G5 note
       }, 400);
+    }
+
+    _ShowUpgradeMenu() {
+      // Créer le menu d'amélioration
+      const upgradeMenu = document.createElement('div');
+      upgradeMenu.id = 'upgrade-menu';
+      upgradeMenu.innerHTML = `
+        <div class="upgrade-container">
+          <h2>🎉 NIVEAU ${this._playerLevel}! 🎉</h2>
+          <p>Vous avez ${this._availableUpgradePoints} points à dépenser</p>
+          <div class="upgrade-options">
+            <div class="upgrade-option" data-type="damage">
+              <h3>⚔️ Dégâts (+${GameConfig.progression.damagePerPoint} par point)</h3>
+              <p>Actuellement: +${this._playerDamageBonus}</p>
+              <button onclick="combatSystem._UpgradeAttribute('damage')">Améliorer</button>
+            </div>
+            <div class="upgrade-option" data-type="heal">
+              <h3>💚 Soins (+${GameConfig.progression.healPerPoint} par point)</h3>
+              <p>Actuellement: +${this._playerHealBonus}</p>
+              <button onclick="combatSystem._UpgradeAttribute('heal')">Améliorer</button>
+            </div>
+          </div>
+          <button class="finish-upgrade" onclick="combatSystem._FinishUpgrade()">Terminer</button>
+        </div>
+      `;
+      
+      // Ajouter les styles
+      upgradeMenu.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        font-family: 'Courier New', monospace;
+      `;
+      
+      const container = upgradeMenu.querySelector('.upgrade-container');
+      container.style.cssText = `
+        background: linear-gradient(135deg, #2c3e50, #34495e);
+        padding: 30px;
+        border-radius: 15px;
+        border: 3px solid #f39c12;
+        text-align: center;
+        color: white;
+        box-shadow: 0 0 30px rgba(243, 156, 18, 0.5);
+      `;
+      
+      const options = upgradeMenu.querySelectorAll('.upgrade-option');
+      options.forEach(option => {
+        option.style.cssText = `
+          background: rgba(52, 73, 94, 0.8);
+          margin: 15px;
+          padding: 20px;
+          border-radius: 10px;
+          border: 2px solid #3498db;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        `;
+        
+        option.addEventListener('mouseenter', () => {
+          option.style.borderColor = '#f39c12';
+          option.style.transform = 'scale(1.05)';
+        });
+        
+        option.addEventListener('mouseleave', () => {
+          option.style.borderColor = '#3498db';
+          option.style.transform = 'scale(1)';
+        });
+      });
+      
+      const buttons = upgradeMenu.querySelectorAll('button');
+      buttons.forEach(button => {
+        button.style.cssText = `
+          background: #e74c3c;
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 5px;
+          cursor: pointer;
+          font-family: 'Courier New', monospace;
+          font-weight: bold;
+          margin: 5px;
+          transition: background 0.3s ease;
+        `;
+        
+        button.addEventListener('mouseenter', () => {
+          button.style.background = '#c0392b';
+        });
+        
+        button.addEventListener('mouseleave', () => {
+          button.style.background = '#e74c3c';
+        });
+      });
+      
+      document.body.appendChild(upgradeMenu);
+      
+      // Exposer les méthodes globalement pour les boutons
+      window.combatSystem = this;
+    }
+
+    _UpgradeAttribute(type) {
+      if (this._availableUpgradePoints <= 0) {
+        console.log('❌ Pas assez de points d\'amélioration!');
+        return;
+      }
+      
+      if (type === 'damage') {
+        this._playerDamageBonus += GameConfig.progression.damagePerPoint;
+        console.log(`⚔️ Dégâts améliorés! Bonus: +${this._playerDamageBonus}`);
+      } else if (type === 'heal') {
+        this._playerHealBonus += GameConfig.progression.healPerPoint;
+        console.log(`💚 Soins améliorés! Bonus: +${this._playerHealBonus}`);
+      }
+      
+      this._availableUpgradePoints--;
+      
+      // Mettre à jour l'affichage
+      this._UpdateUpgradeDisplay();
+      
+      // Jouer un son d'amélioration
+      this._PlayUpgradeSound();
+    }
+
+    _UpdateUpgradeDisplay() {
+      const upgradeMenu = document.getElementById('upgrade-menu');
+      if (upgradeMenu) {
+        const pointsDisplay = upgradeMenu.querySelector('p');
+        pointsDisplay.textContent = `Vous avez ${this._availableUpgradePoints} points à dépenser`;
+        
+        const damageDisplay = upgradeMenu.querySelector('[data-type="damage"] p');
+        damageDisplay.textContent = `Actuellement: +${this._playerDamageBonus}`;
+        
+        const healDisplay = upgradeMenu.querySelector('[data-type="heal"] p');
+        healDisplay.textContent = `Actuellement: +${this._playerHealBonus}`;
+        
+        // Désactiver les boutons si plus de points
+        const buttons = upgradeMenu.querySelectorAll('.upgrade-option button');
+        buttons.forEach(button => {
+          button.disabled = this._availableUpgradePoints <= 0;
+          if (button.disabled) {
+            button.style.background = '#7f8c8d';
+            button.style.cursor = 'not-allowed';
+          }
+        });
+      }
+    }
+
+    _FinishUpgrade() {
+      const upgradeMenu = document.getElementById('upgrade-menu');
+      if (upgradeMenu) {
+        upgradeMenu.remove();
+      }
+      
+      this._pendingLevelUp = false;
+      
+      // Nettoyer la référence globale
+      if (window.combatSystem === this) {
+        delete window.combatSystem;
+      }
+      
+      console.log('✅ Améliorations terminées!');
+      console.log(`📊 Stats actuelles - Dégâts: +${this._playerDamageBonus}, Soins: +${this._playerHealBonus}`);
+    }
+
+    _PlayUpgradeSound() {
+      // Son d'amélioration - séquence ascendante
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const frequencies = [523.25, 659.25, 783.99]; // Do, Mi, Sol
+      
+      frequencies.forEach((freq, index) => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(freq, audioContext.currentTime + index * 0.1);
+        oscillator.type = 'triangle';
+        
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime + index * 0.1);
+        gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + index * 0.1 + 0.05);
+        gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + index * 0.1 + 0.2);
+        
+        oscillator.start(audioContext.currentTime + index * 0.1);
+        oscillator.stop(audioContext.currentTime + index * 0.1 + 0.2);
+      });
+    }
+
+    // Méthodes utilitaires pour accéder aux stats depuis la configuration
+    GetPlayerStats() {
+      return {
+        level: this._playerLevel,
+        health: this._playerHealth,
+        maxHealth: this._playerMaxHealth,
+        xp: this._playerXP,
+        xpToNext: this._playerXPToNextLevel,
+        damageBonus: this._playerDamageBonus,
+        healBonus: this._playerHealBonus,
+        damage: this._CalculatePlayerDamage(),
+        heal: GameConfig.formulas.playerHeal(this._playerLevel, this._playerHealBonus)
+      };
+    }
+
+    GetEnemyStats() {
+      return {
+        damage: this._CalculateMonsterDamage(),
+        health: GameConfig.formulas.enemyHealth(this._playerLevel)
+      };
     }
 
     get IsInCombat() {
