@@ -65,6 +65,7 @@ export const combat_system = (() => {
       this._selectedMenuIndex = 0;
       this._selectedQuizIndex = 0;
       this._currentMenu = 'action'; // 'action' or 'quiz'
+      this._isAnimating = false;
       
       // Keyboard handlers for retro navigation
       document.addEventListener('keydown', (e) => this._HandleKeyInput(e));
@@ -73,6 +74,8 @@ export const combat_system = (() => {
       const quizOptions = document.querySelectorAll('.quiz-option');
       quizOptions.forEach((option, index) => {
         option.addEventListener('click', () => {
+          if (this._isAnimating) return;
+          this._PlayUISound('select');
           this._selectedQuizIndex = index;
           this._UpdateQuizSelection();
           this._HandleQuizAnswer(index);
@@ -83,19 +86,20 @@ export const combat_system = (() => {
       const menuOptions = document.querySelectorAll('.menu-option');
       menuOptions.forEach((option, index) => {
         option.addEventListener('click', () => {
+          if (this._isAnimating) return;
+          this._PlayUISound('select');
           this._selectedMenuIndex = index;
           this._UpdateMenuSelection();
           this._HandleMenuAction(option.dataset.action);
         });
       });
       
-      
       // Initialize selection
       this._UpdateMenuSelection();
     }
     
     _HandleKeyInput(event) {
-      if (!this._isInCombat) return;
+      if (!this._isInCombat || this._isAnimating) return;
       
       event.preventDefault();
       
@@ -104,15 +108,18 @@ export const combat_system = (() => {
         
         switch(event.key) {
           case 'ArrowUp':
+            this._PlayUISound('navigate');
             this._selectedMenuIndex = Math.max(0, this._selectedMenuIndex - 1);
             this._UpdateMenuSelection();
             break;
           case 'ArrowDown':
+            this._PlayUISound('navigate');
             this._selectedMenuIndex = Math.min(menuOptions.length - 1, this._selectedMenuIndex + 1);
             this._UpdateMenuSelection();
             break;
           case 'Enter':
           case ' ':
+            this._PlayUISound('select');
             const selectedOption = menuOptions[this._selectedMenuIndex];
             this._HandleMenuAction(selectedOption.dataset.action);
             break;
@@ -122,18 +129,22 @@ export const combat_system = (() => {
         
         switch(event.key) {
           case 'ArrowUp':
+            this._PlayUISound('navigate');
             this._selectedQuizIndex = Math.max(0, this._selectedQuizIndex - 1);
             this._UpdateQuizSelection();
             break;
           case 'ArrowDown':
+            this._PlayUISound('navigate');
             this._selectedQuizIndex = Math.min(quizOptions.length - 1, this._selectedQuizIndex + 1);
             this._UpdateQuizSelection();
             break;
           case 'Enter':
           case ' ':
+            this._PlayUISound('select');
             this._HandleQuizAnswer(this._selectedQuizIndex);
             break;
           case 'Escape':
+            this._PlayUISound('back');
             this._ShowActionMenu();
             break;
         }
@@ -145,8 +156,10 @@ export const combat_system = (() => {
       menuOptions.forEach((option, index) => {
         if (index === this._selectedMenuIndex) {
           option.classList.add('selected');
+          option.style.transform = 'scale(1.05)';
         } else {
           option.classList.remove('selected');
+          option.style.transform = 'scale(1)';
         }
       });
     }
@@ -156,10 +169,57 @@ export const combat_system = (() => {
       quizOptions.forEach((option, index) => {
         if (index === this._selectedQuizIndex) {
           option.classList.add('selected');
+          option.style.transform = 'scale(1.05)';
         } else {
           option.classList.remove('selected');
+          option.style.transform = 'scale(1)';
         }
       });
+    }
+    
+    _PlayUISound(type) {
+      // Créer des sons d'interface simples avec Web Audio API
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      switch(type) {
+        case 'navigate':
+          oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+          gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+          break;
+        case 'select':
+          oscillator.frequency.setValueAtTime(1200, audioContext.currentTime);
+          oscillator.frequency.setValueAtTime(1000, audioContext.currentTime + 0.1);
+          gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+          break;
+        case 'back':
+          oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+          gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+          break;
+        case 'correct':
+          oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+          oscillator.frequency.setValueAtTime(1200, audioContext.currentTime + 0.1);
+          oscillator.frequency.setValueAtTime(1600, audioContext.currentTime + 0.2);
+          gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+          break;
+        case 'incorrect':
+          oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+          oscillator.frequency.setValueAtTime(300, audioContext.currentTime + 0.1);
+          gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+          break;
+      }
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
     }
     
     _HandleMenuAction(action) {
@@ -233,24 +293,36 @@ export const combat_system = (() => {
       
       // Award XP if player won
       if (message.playerWon) {
+        this._PlayUISound('correct');
         this._AwardXP(50);
-        this._AddCombatLog('Victory! You gained 50 XP!');
+        this._AddCombatLogAnimated('🎉 Victory! You gained 50 XP!', 'success');
+        this._ShowVictoryEffect();
       } else {
-        this._AddCombatLog('Defeat...');
+        this._PlayUISound('incorrect');
+        this._AddCombatLogAnimated('💀 Defeat...', 'error');
+        this._ShowDefeatEffect();
       }
       
-      // Hide combat UI immediately
-      this._HideCombatUI();
-      
-      // Set combat state to false
-      this._isInCombat = false;
-      this._currentMonster = null;
-      
-      // Transition camera back
-      this._isTransitioning = true;
-      this._cameraTransitionProgress = 0;
-      
-      console.log('✅ Combat ended, isInCombat:', this._isInCombat);
+      // Delay before hiding UI to show final message
+      setTimeout(() => {
+        this._HideCombatUIAnimated();
+        
+        // Set combat state to false
+        this._isInCombat = false;
+        this._currentMonster = null;
+        this._isAnimating = false;
+        
+        // Transition camera back
+        this._isTransitioning = true;
+        this._cameraTransitionProgress = 0;
+        
+        // Re-enable player movement after camera transition
+        setTimeout(() => {
+          this._EnablePlayerMovement();
+        }, 1000);
+        
+        console.log('✅ Combat ended, isInCombat:', this._isInCombat);
+      }, 2000);
     }
 
     _ShowCombatUI() {
@@ -261,6 +333,95 @@ export const combat_system = (() => {
     _HideCombatUI() {
       const combatUI = document.getElementById('combat-ui');
       combatUI.classList.add('hidden');
+    }
+    
+    _HideCombatUIAnimated() {
+      const combatUI = document.getElementById('combat-ui');
+      combatUI.style.transition = 'all 0.5s ease';
+      combatUI.style.opacity = '0';
+      combatUI.style.transform = 'scale(0.9)';
+      
+      setTimeout(() => {
+        combatUI.classList.add('hidden');
+        combatUI.style.opacity = '';
+        combatUI.style.transform = '';
+        combatUI.style.transition = '';
+      }, 500);
+    }
+    
+    _ShowVictoryEffect() {
+      // Créer des particules de victoire
+      const combatPanel = document.querySelector('.combat-panel');
+      
+      for (let i = 0; i < 20; i++) {
+        const particle = document.createElement('div');
+        particle.style.position = 'absolute';
+        particle.style.width = '6px';
+        particle.style.height = '6px';
+        particle.style.background = '#ffd700';
+        particle.style.borderRadius = '50%';
+        particle.style.pointerEvents = 'none';
+        particle.style.zIndex = '1200';
+        
+        const startX = Math.random() * combatPanel.offsetWidth;
+        const startY = Math.random() * combatPanel.offsetHeight;
+        particle.style.left = startX + 'px';
+        particle.style.top = startY + 'px';
+        
+        combatPanel.appendChild(particle);
+        
+        // Animer la particule
+        const animation = particle.animate([
+          { 
+            transform: 'translate(0, 0) scale(1)', 
+            opacity: 1 
+          },
+          { 
+            transform: `translate(${(Math.random() - 0.5) * 200}px, ${-100 - Math.random() * 100}px) scale(0)`, 
+            opacity: 0 
+          }
+        ], {
+          duration: 1000 + Math.random() * 500,
+          easing: 'ease-out'
+        });
+        
+        animation.onfinish = () => particle.remove();
+      }
+    }
+    
+    _ShowDefeatEffect() {
+      // Effet de défaite avec assombrissement
+      const combatPanel = document.querySelector('.combat-panel');
+      const overlay = document.createElement('div');
+      overlay.style.position = 'absolute';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100%';
+      overlay.style.height = '100%';
+      overlay.style.background = 'rgba(255, 0, 0, 0.3)';
+      overlay.style.pointerEvents = 'none';
+      overlay.style.borderRadius = '15px';
+      overlay.style.opacity = '0';
+      overlay.style.transition = 'opacity 0.3s ease';
+      
+      combatPanel.appendChild(overlay);
+      
+      setTimeout(() => {
+        overlay.style.opacity = '1';
+      }, 50);
+      
+      setTimeout(() => {
+        overlay.remove();
+      }, 1500);
+    }
+    
+    _EnablePlayerMovement() {
+      // Réactiver le mouvement du joueur
+      if (this._params.target && this._params.target.GetComponent('BasicCharacterController')) {
+        const controller = this._params.target.GetComponent('BasicCharacterController');
+        controller._enabled = true;
+        console.log('✅ Player movement re-enabled');
+      }
     }
 
     _ShowQuizSection() {
@@ -301,51 +462,63 @@ export const combat_system = (() => {
     }
 
     _HandleQuizAnswer(selectedIndex) {
-      if (!this._currentQuiz || !this._playerTurn) return;
+      if (!this._currentQuiz || !this._playerTurn || this._isAnimating) return;
       
+      this._isAnimating = true;
       const options = document.querySelectorAll('.quiz-option');
       const correct = this._currentQuiz.correct;
       
       // Disable all options
       options.forEach(option => option.disabled = true);
       
-      // Show correct/incorrect feedback
-      if (selectedIndex === correct) {
-        options[selectedIndex].classList.add('correct');
-        this._AddCombatLog('Correct! You deal damage to the monster!');
-        this._DamageMonster(25);
-      } else {
-        options[selectedIndex].classList.add('incorrect');
-        options[correct].classList.add('correct');
-        this._AddCombatLog('Wrong answer! The monster attacks you!');
-        this._DamagePlayer(20);
-        
-        // Trigger monster attack animation
-        this._TriggerMonsterAttack();
-      }
+      // Animate selection
+      options[selectedIndex].style.transform = 'scale(1.1)';
       
-      this._playerTurn = false;
-      
-      // Check for combat end
       setTimeout(() => {
-        if (this._currentMonster && this._currentMonster._health <= 0) {
-          // Kill the monster in the game world
-          this._KillMonster();
-          console.log('Monster defeated, ending combat');
-          this._EndCombat({
-            playerWon: true
-          });
-        } else if (this._playerHealth <= 0) {
-          console.log('Player defeated, ending combat');
-          this._EndCombat({
-            playerWon: false
-          });
+        // Show correct/incorrect feedback
+        if (selectedIndex === correct) {
+          this._PlayUISound('correct');
+          options[selectedIndex].classList.add('correct');
+          this._AddCombatLogAnimated('✅ Correct! You deal damage to the monster!', 'success');
+          this._DamageMonster(25);
+          this._ShakeScreen(false); // Victory shake
         } else {
-          // Continue combat - return to action menu
-          this._playerTurn = true;
-          this._ShowActionMenu();
+          this._PlayUISound('incorrect');
+          options[selectedIndex].classList.add('incorrect');
+          options[correct].classList.add('correct');
+          this._AddCombatLogAnimated('❌ Wrong answer! The monster attacks you!', 'error');
+          this._DamagePlayer(20);
+          this._ShakeScreen(true); // Damage shake
+          
+          // Trigger monster attack animation
+          this._TriggerMonsterAttack();
         }
-      }, 2000);
+        
+        this._playerTurn = false;
+        
+        // Check for combat end
+        setTimeout(() => {
+          if (this._currentMonster && this._currentMonster._health <= 0) {
+            // Kill the monster in the game world
+            this._KillMonster();
+            console.log('Monster defeated, ending combat');
+            this._EndCombat({
+              playerWon: true
+            });
+          } else if (this._playerHealth <= 0) {
+            console.log('Player defeated, ending combat');
+            this._EndCombat({
+              playerWon: false
+            });
+          } else {
+            // Continue combat - return to action menu
+            this._playerTurn = true;
+            this._isAnimating = false;
+            this._ShowActionMenu();
+            this._LoadRandomQuiz(); // Load new quiz for next turn
+          }
+        }, 2000);
+      }, 500);
     }
 
     _DamageMonster(damage) {
@@ -421,12 +594,13 @@ export const combat_system = (() => {
         this._currentMonster._health = 0;
         
         // Remove from entity manager
-        const entities = this._params.target._parent._entities;
-        for (let [name, entity] of entities) {
+        const entityManager = this._params.target._parent;
+        const entities = entityManager._entities;
+        for (let entity of entities) {
           const npcController = entity.GetComponent('NPCController');
           if (npcController === this._currentMonster) {
-            console.log('🗑️ Removing defeated enemy:', name);
-            this._params.target._parent.Remove(entity);
+            console.log('🗑️ Removing defeated enemy:', entity._name);
+            entityManager.Remove(entity);
             break;
           }
         }
@@ -439,6 +613,57 @@ export const combat_system = (() => {
       p.textContent = message;
       log.appendChild(p);
       log.scrollTop = log.scrollHeight;
+    }
+    
+    _AddCombatLogAnimated(message, type = 'normal') {
+      const log = document.getElementById('combat-log');
+      const p = document.createElement('p');
+      p.textContent = message;
+      p.style.opacity = '0';
+      p.style.transform = 'translateY(10px)';
+      p.style.transition = 'all 0.3s ease';
+      
+      if (type === 'success') {
+        p.style.color = '#4ade80';
+        p.style.fontWeight = 'bold';
+      } else if (type === 'error') {
+        p.style.color = '#ef4444';
+        p.style.fontWeight = 'bold';
+      }
+      
+      log.appendChild(p);
+      
+      // Animate in
+      setTimeout(() => {
+        p.style.opacity = '1';
+        p.style.transform = 'translateY(0)';
+      }, 50);
+      
+      log.scrollTop = log.scrollHeight;
+    }
+    
+    _ShakeScreen(isDamage = false) {
+      const combatUI = document.getElementById('combat-ui');
+      const intensity = isDamage ? 10 : 5;
+      const duration = isDamage ? 500 : 300;
+      
+      let startTime = Date.now();
+      
+      const shake = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = elapsed / duration;
+        
+        if (progress < 1) {
+          const x = (Math.random() - 0.5) * intensity * (1 - progress);
+          const y = (Math.random() - 0.5) * intensity * (1 - progress);
+          combatUI.style.transform = `translate(${x}px, ${y}px)`;
+          requestAnimationFrame(shake);
+        } else {
+          combatUI.style.transform = 'translate(0, 0)';
+        }
+      };
+      
+      shake();
     }
 
     Update(timeElapsed) {

@@ -44,6 +44,32 @@ export const entity_manager = (() => {
       this._entities.splice(i, 1);
     }
 
+    Remove(entity) {
+      // Find entity name in the map
+      let entityName = null;
+      for (let [name, e] of Object.entries(this._entitiesMap)) {
+        if (e === entity) {
+          entityName = name;
+          break;
+        }
+      }
+      
+      if (entityName) {
+        // Remove from map
+        delete this._entitiesMap[entityName];
+        
+        // Remove from array
+        const index = this._entities.indexOf(entity);
+        if (index > -1) {
+          this._entities.splice(index, 1);
+        }
+        
+        return true;
+      }
+      
+      return false;
+    }
+
     Update(timeElapsed) {
       for (let e of this._entities) {
         e.Update(timeElapsed);

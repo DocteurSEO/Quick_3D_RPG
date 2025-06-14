@@ -35,6 +35,10 @@ body {
   transform: scale(0.9);
 }
 
+.combat-ui:not(.hidden) {
+  animation: fadeInScale 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 .combat-panel {
   position: fixed;
   bottom: 20px;
@@ -53,11 +57,22 @@ body {
 
 @keyframes slideUp {
   from {
-    transform: translateY(50px);
+    transform: translateY(50px) scale(0.9);
     opacity: 0;
   }
   to {
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
     opacity: 1;
   }
 }
@@ -83,6 +98,19 @@ body {
   padding: 15px 20px;
   border: 2px solid #ffffff;
   border-radius: 10px;
+  animation: slideDown 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(5px);
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .health-bar-container span {
@@ -106,11 +134,29 @@ body {
   height: 100%;
   background: linear-gradient(90deg, #ff4444, #ff6666);
   width: 100%;
-  transition: width 0.3s ease;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.health-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: healthShine 3s infinite;
 }
 
 .player-health .health-fill {
   background: linear-gradient(90deg, #44ff44, #66ff66);
+}
+
+@keyframes healthShine {
+  0% { left: -100%; }
+  100% { left: 100%; }
 }
 
 /* Action Menu */
@@ -143,19 +189,39 @@ body {
   color: white;
   font-size: 1.1em;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-family: 'Courier New', monospace;
+  position: relative;
+  overflow: hidden;
 }
 
 .menu-option:hover, .quiz-option:hover {
   background: rgba(40, 40, 40, 0.9);
   border-color: #ffffff;
+  transform: translateX(5px);
 }
 
 .menu-option.selected, .quiz-option.selected {
   background: rgba(60, 60, 60, 0.9);
   border-color: #ffffff;
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.4), inset 0 0 10px rgba(255, 255, 255, 0.1);
+  transform: translateX(8px);
+}
+
+.menu-option.selected::before, .quiz-option.selected::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .arrow {
@@ -193,11 +259,26 @@ body {
 .quiz-option.correct {
   background: rgba(34, 197, 94, 0.3);
   border-color: rgba(34, 197, 94, 0.8);
+  animation: correctPulse 0.6s ease;
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
 }
 
 .quiz-option.incorrect {
   background: rgba(239, 68, 68, 0.3);
   border-color: rgba(239, 68, 68, 0.8);
+  animation: incorrectShake 0.6s ease;
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+}
+
+@keyframes correctPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes incorrectShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
 }
 
 /* Combat Log */
@@ -224,16 +305,18 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(34, 197, 94, 0.9);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.9), rgba(16, 185, 129, 0.9));
   color: white;
-  padding: 20px 40px;
-  border-radius: 15px;
-  font-size: 2em;
+  padding: 25px 50px;
+  border-radius: 20px;
+  font-size: 2.2em;
   font-weight: bold;
   z-index: 1100;
-  backdrop-filter: blur(10px);
-  border: 2px solid rgba(34, 197, 94, 0.6);
-  animation: xpPop 2s ease;
+  backdrop-filter: blur(15px);
+  border: 3px solid rgba(34, 197, 94, 0.8);
+  animation: xpPop 2.5s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 30px rgba(34, 197, 94, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .xp-notification.hidden {
@@ -243,17 +326,33 @@ body {
 
 @keyframes xpPop {
   0% {
-    transform: translate(-50%, -50%) scale(0.5);
+    transform: translate(-50%, -50%) scale(0.3) rotate(-10deg);
     opacity: 0;
   }
-  50% {
-    transform: translate(-50%, -50%) scale(1.1);
+  30% {
+    transform: translate(-50%, -50%) scale(1.15) rotate(5deg);
+    opacity: 1;
+  }
+  60% {
+    transform: translate(-50%, -50%) scale(0.95) rotate(-2deg);
     opacity: 1;
   }
   100% {
-    transform: translate(-50%, -50%) scale(1);
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
     opacity: 1;
   }
+}
+
+/* Styles pour les particules de victoire */
+.victory-particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle, #ffd700, #ffed4e);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1200;
+  box-shadow: 0 0 6px rgba(255, 215, 0, 0.8);
 }
 
 .hidden {
