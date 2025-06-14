@@ -42,8 +42,54 @@ export const combat_system = (() => {
           question: "What is 100 / 4?",
           options: ["20", "25", "30", "35"],
           correct: 1
+        },
+        {
+          question: "What is the square root of 64?",
+          options: ["6", "7", "8", "9"],
+          correct: 2
+        },
+        {
+          question: "Which programming language is known for web development?",
+          options: ["Python", "JavaScript", "C++", "Java"],
+          correct: 1
+        },
+        {
+          question: "What is 15 - 7?",
+          options: ["6", "7", "8", "9"],
+          correct: 2
+        },
+        {
+          question: "Which is the largest ocean?",
+          options: ["Atlantic", "Indian", "Arctic", "Pacific"],
+          correct: 3
+        },
+        {
+          question: "What is 3 × 7?",
+          options: ["19", "20", "21", "22"],
+          correct: 2
+        },
+        {
+          question: "What does HTML stand for?",
+          options: ["Hypertext Markup Language", "Home Tool Markup Language", "Hyperlinks and Text Markup Language", "Hypermedia Text Markup Language"],
+          correct: 0
+        },
+        {
+          question: "What is 50 ÷ 5?",
+          options: ["8", "9", "10", "11"],
+          correct: 2
         }
       ];
+      
+      // Camera animation properties
+      this._cameraAngles = [
+        { position: { x: 0, y: 12, z: 15 }, lookAt: { x: 0, y: 2, z: 0 } },
+        { position: { x: -10, y: 8, z: 10 }, lookAt: { x: 2, y: 3, z: -2 } },
+        { position: { x: 8, y: 10, z: -8 }, lookAt: { x: -1, y: 2, z: 1 } },
+        { position: { x: 12, y: 15, z: 5 }, lookAt: { x: -2, y: 1, z: 0 } },
+        { position: { x: -5, y: 6, z: 12 }, lookAt: { x: 1, y: 4, z: -1 } }
+      ];
+      this._currentCameraAngle = 0;
+      this._usedQuestions = new Set();
       
       this._currentQuiz = null;
       this._playerHealth = 100;
@@ -248,7 +294,7 @@ export const combat_system = (() => {
           this._AddCombatLog('Code action not implemented yet!');
           break;
         case 'heal':
-          this._AddCombatLog('Heal action not implemented yet!');
+          this._HandleHealAction();
           break;
       }
     }
@@ -277,18 +323,13 @@ export const combat_system = (() => {
       this._originalCameraPosition.copy(this._params.camera.position);
       this._originalCameraLookAt.copy(this._params.target._position);
       
-      // Calculate combat camera position (closer to the action)
+      // Calculate combat camera position with dynamic angles
       const monsterPos = this._currentMonster._position;
       const playerPos = this._params.target._position;
       
-      // Position camera to show both combatants
+      // Position camera to show both combatants with dynamic angle
       const midPoint = new THREE.Vector3().addVectors(monsterPos, playerPos).multiplyScalar(0.5);
-      this._combatCameraPosition.copy(midPoint);
-      this._combatCameraPosition.y += 8;
-      this._combatCameraPosition.z += 12;
-      
-      this._combatCameraLookAt.copy(midPoint);
-      this._combatCameraLookAt.y += 2;
+      this._SetDynamicCameraAngle(midPoint);
       
       // Disable player movement during combat
       const controller = this._params.target.GetComponent('BasicCharacterController');
@@ -318,6 +359,7 @@ export const combat_system = (() => {
       setTimeout(() => {
         this._LoadRandomQuiz();
         this._AddCombatLog('Combat started!');
+        this._PlayCombatStartSound();
       }, 100);
     }
 
@@ -558,6 +600,13 @@ export const combat_system = (() => {
           this._AddCombatLogAnimated(`✅ Correct! You deal ${playerDamage} damage to the monster!`, 'success');
           this._DamageMonster(playerDamage);
           this._ShakeScreen(false); // Victory shake
+          
+          // Play victory sound and create damage effect
+          this._PlayVictorySound();
+          if (this._currentMonster && this._currentMonster._position) {
+            this._CreateDamageEffect(this._currentMonster._position, playerDamage, false);
+          }
+          this._PlayDamageSound(false);
         } else {
           this._PlayUISound('incorrect');
           options[selectedIndex].classList.add('incorrect');
@@ -568,6 +617,13 @@ export const combat_system = (() => {
           
           // Trigger monster attack animation
           this._TriggerMonsterAttack();
+          
+          // Play damage sound and create damage effect
+          this._PlayDefeatSound();
+          if (this._params.target && this._params.target._position) {
+            this._CreateDamageEffect(this._params.target._position, monsterDamage, true);
+          }
+          this._PlayDamageSound(true);
         }
         
         this._playerTurn = false;
@@ -587,9 +643,16 @@ export const combat_system = (() => {
               playerWon: false
             });
           } else {
-            // Continue combat - start robot turn
+            // Continue combat - start robot turn with new camera angle and question
             this._playerTurn = false;
             this._isAnimating = false;
+            
+            // Change camera angle for next turn
+            this._ChangeCameraAngle();
+            
+            // Load new question for next turn
+            this._LoadRandomQuiz();
+            
             this._StartRobotTurn();
           }
         }, 2000);
@@ -1163,8 +1226,8 @@ export const combat_system = (() => {
       console.log('🤖 Robot is thinking...');
       this._isAnimating = true;
       
-      // Load a new quiz for the robot (different from player's question)
-      this._LoadRobotQuiz();
+      // Use the current quiz that was already loaded
+      this._robotQuiz = this._currentQuiz;
       
       // Robot AI logic - for now, random with slight bias toward correct answer
       const robotAnswer = this._CalculateRobotAnswer();
@@ -1175,7 +1238,7 @@ export const combat_system = (() => {
 
     _CalculateRobotAnswer() {
       // Simple AI: 70% chance to get it right, 30% chance to be wrong
-      const correctAnswer = this._robotQuiz.correct;
+      const correctAnswer = this._currentQuiz.correct;
       const shouldBeCorrect = Math.random() < 0.7;
       
       if (shouldBeCorrect) {
@@ -1183,7 +1246,7 @@ export const combat_system = (() => {
       } else {
         // Pick a random wrong answer
         const wrongAnswers = [];
-        for (let i = 0; i < this._robotQuiz.options.length; i++) {
+        for (let i = 0; i < this._currentQuiz.options.length; i++) {
           if (i !== correctAnswer) {
             wrongAnswers.push(i);
           }
@@ -1224,7 +1287,7 @@ export const combat_system = (() => {
       // Update question text with animation
       const questionElement = document.getElementById('quiz-question');
       if (questionElement) {
-        questionElement.innerHTML = `🤖 Question du Robot: ${this._robotQuiz.question}`;
+        questionElement.innerHTML = `🤖 Question du Robot: ${this._currentQuiz.question}`;
         questionElement.style.color = '#e74c3c';
         questionElement.style.fontWeight = 'bold';
         questionElement.style.textShadow = '0 0 10px rgba(231, 76, 60, 0.5)';
@@ -1234,7 +1297,10 @@ export const combat_system = (() => {
       // Update options with robot styling and animations
       const options = document.querySelectorAll('.quiz-option');
       options.forEach((option, index) => {
-        option.textContent = this._robotQuiz.options[index];
+        const optionText = option.querySelector('.option-text');
+        if (optionText) {
+          optionText.textContent = `${String.fromCharCode(65 + index)}) ${this._currentQuiz.options[index]}`;
+        }
         option.style.background = 'linear-gradient(135deg, #34495e, #2c3e50)';
         option.style.border = '2px solid #e74c3c';
         option.style.color = '#ecf0f1';
@@ -1512,6 +1578,9 @@ export const combat_system = (() => {
       } else if (type === 'error') {
         p.style.color = '#ef4444';
         p.style.fontWeight = 'bold';
+      } else if (type === 'heal') {
+        p.classList.add('heal-log');
+        p.style.fontWeight = 'bold';
       }
       
       log.appendChild(p);
@@ -1570,6 +1639,210 @@ export const combat_system = (() => {
       }
     }
 
+    _SetDynamicCameraAngle(midPoint) {
+      // Get current camera angle configuration
+      const angleConfig = this._cameraAngles[this._currentCameraAngle];
+      
+      // Apply relative positioning to the midpoint
+      this._combatCameraPosition.copy(midPoint);
+      this._combatCameraPosition.x += angleConfig.position.x;
+      this._combatCameraPosition.y += angleConfig.position.y;
+      this._combatCameraPosition.z += angleConfig.position.z;
+      
+      this._combatCameraLookAt.copy(midPoint);
+      this._combatCameraLookAt.x += angleConfig.lookAt.x;
+      this._combatCameraLookAt.y += angleConfig.lookAt.y;
+      this._combatCameraLookAt.z += angleConfig.lookAt.z;
+      
+      console.log(`📹 Using camera angle ${this._currentCameraAngle + 1}/${this._cameraAngles.length}`);
+    }
+    
+    _ChangeCameraAngle() {
+      // Cycle to next camera angle
+      this._currentCameraAngle = (this._currentCameraAngle + 1) % this._cameraAngles.length;
+      
+      // Recalculate camera position with new angle
+      const monsterPos = this._currentMonster._position;
+      const playerPos = this._params.target._position;
+      const midPoint = new THREE.Vector3().addVectors(monsterPos, playerPos).multiplyScalar(0.5);
+      
+      this._SetDynamicCameraAngle(midPoint);
+      
+      // Start camera transition to new angle
+      this._isTransitioning = true;
+      this._cameraTransitionProgress = 0;
+      
+      // Play camera change sound
+      this._PlayCameraChangeSound();
+    }
+    
+    _LoadRandomQuiz() {
+      // Get unused questions
+      const availableQuestions = this._quizDatabase.filter((_, index) => !this._usedQuestions.has(index));
+      
+      // If all questions used, reset the used set
+      if (availableQuestions.length === 0) {
+        this._usedQuestions.clear();
+        availableQuestions.push(...this._quizDatabase);
+      }
+      
+      // Select random question from available ones
+      const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+      const selectedQuestion = availableQuestions[randomIndex];
+      
+      // Mark this question as used
+      const originalIndex = this._quizDatabase.indexOf(selectedQuestion);
+      this._usedQuestions.add(originalIndex);
+      
+      this._currentQuiz = selectedQuestion;
+      
+      // Update UI
+      document.getElementById('quiz-question').textContent = this._currentQuiz.question;
+      const options = document.querySelectorAll('.quiz-option');
+      options.forEach((option, index) => {
+        option.textContent = this._currentQuiz.options[index];
+        option.classList.remove('correct', 'incorrect');
+        option.disabled = false;
+      });
+      
+      console.log(`🎯 Loaded new question: "${this._currentQuiz.question}"`);
+    }
+    
+    _CreateDamageEffect(position, damage, isPlayer = false) {
+      // Create floating damage text
+      const damageElement = document.createElement('div');
+      damageElement.textContent = `-${damage}`;
+      damageElement.style.position = 'fixed';
+      damageElement.style.fontSize = '24px';
+      damageElement.style.fontWeight = 'bold';
+      damageElement.style.color = isPlayer ? '#ff4444' : '#ffaa00';
+      damageElement.style.textShadow = '2px 2px 4px rgba(0,0,0,0.8)';
+      damageElement.style.pointerEvents = 'none';
+      damageElement.style.zIndex = '10000';
+      damageElement.style.transition = 'all 1s ease-out';
+      
+      // Convert 3D position to screen coordinates
+      const vector = new THREE.Vector3();
+      vector.copy(position);
+      vector.project(this._params.camera);
+      
+      const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+      
+      damageElement.style.left = x + 'px';
+      damageElement.style.top = y + 'px';
+      
+      document.body.appendChild(damageElement);
+      
+      // Animate damage text
+      setTimeout(() => {
+        damageElement.style.transform = 'translateY(-50px)';
+        damageElement.style.opacity = '0';
+      }, 100);
+      
+      // Remove element after animation
+      setTimeout(() => {
+        document.body.removeChild(damageElement);
+      }, 1100);
+      
+      // Create particle effect if particle system is available
+      this._CreateParticleEffect(position, isPlayer);
+    }
+    
+    _CreateParticleEffect(position, isPlayer = false) {
+      // Create simple particle effect using CSS
+      for (let i = 0; i < 8; i++) {
+        const particle = document.createElement('div');
+        particle.style.position = 'fixed';
+        particle.style.width = '4px';
+        particle.style.height = '4px';
+        particle.style.backgroundColor = isPlayer ? '#ff4444' : '#ffaa00';
+        particle.style.borderRadius = '50%';
+        particle.style.pointerEvents = 'none';
+        particle.style.zIndex = '9999';
+        
+        // Convert 3D position to screen coordinates
+        const vector = new THREE.Vector3();
+        vector.copy(position);
+        vector.project(this._params.camera);
+        
+        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (vector.y * -0.5 + 0.5) * window.innerHeight;
+        
+        particle.style.left = x + 'px';
+        particle.style.top = y + 'px';
+        
+        document.body.appendChild(particle);
+        
+        // Random direction for each particle
+        const angle = (i / 8) * Math.PI * 2;
+        const distance = 30 + Math.random() * 20;
+        const endX = x + Math.cos(angle) * distance;
+        const endY = y + Math.sin(angle) * distance;
+        
+        particle.style.transition = 'all 0.8s ease-out';
+        
+        setTimeout(() => {
+          particle.style.left = endX + 'px';
+          particle.style.top = endY + 'px';
+          particle.style.opacity = '0';
+          particle.style.transform = 'scale(0)';
+        }, 50);
+        
+        // Remove particle after animation
+        setTimeout(() => {
+          document.body.removeChild(particle);
+        }, 850);
+      }
+    }
+    
+    _PlayCombatStartSound() {
+      this._PlayDynamicSound('combat_start', [400, 600, 800], [0.2, 0.15, 0.1], [0.1, 0.2, 0.3]);
+    }
+    
+    _PlayCameraChangeSound() {
+      this._PlayDynamicSound('camera_change', [1000, 1200], [0.1, 0.08], [0.15, 0.15]);
+    }
+    
+    _PlayDamageSound(isPlayer = false) {
+      if (isPlayer) {
+        this._PlayDynamicSound('player_damage', [300, 250], [0.2, 0.15], [0.2, 0.3]);
+      } else {
+        this._PlayDynamicSound('monster_damage', [500, 400], [0.15, 0.12], [0.2, 0.25]);
+      }
+    }
+    
+    _PlayVictorySound() {
+      this._PlayDynamicSound('victory', [800, 1000, 1200, 1500], [0.2, 0.18, 0.15, 0.12], [0.2, 0.2, 0.2, 0.4]);
+    }
+    
+    _PlayDefeatSound() {
+      this._PlayDynamicSound('defeat', [400, 300, 200], [0.25, 0.2, 0.15], [0.3, 0.3, 0.4]);
+    }
+    
+    _PlayDynamicSound(type, frequencies, volumes, durations) {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        frequencies.forEach((freq, index) => {
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          
+          oscillator.frequency.setValueAtTime(freq, audioContext.currentTime + index * 0.1);
+          gainNode.gain.setValueAtTime(volumes[index] || 0.1, audioContext.currentTime + index * 0.1);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + index * 0.1 + (durations[index] || 0.2));
+          
+          oscillator.start(audioContext.currentTime + index * 0.1);
+          oscillator.stop(audioContext.currentTime + index * 0.1 + (durations[index] || 0.2));
+        });
+      } catch (error) {
+        console.log('Audio not available:', error);
+      }
+    }
+    
     _UpdateCameraTransition(timeElapsed) {
       this._cameraTransitionProgress += timeElapsed * 3; // Faster transition - 0.33 seconds
       
@@ -1603,6 +1876,159 @@ export const combat_system = (() => {
           }
         }
       }
+    }
+
+    _HandleHealAction() {
+      if (!this._playerTurn || this._isAnimating || !this._isInCombat) {
+        console.log('🚫 Heal action ignored - not player turn or animating');
+        return;
+      }
+      
+      console.log('💚 Player uses heal action');
+      this._isAnimating = true;
+      
+      // Heal player for 20 HP
+      const healAmount = 20;
+      const oldHealth = this._playerHealth;
+      this._playerHealth = Math.min(this._playerMaxHealth, this._playerHealth + healAmount);
+      const actualHeal = this._playerHealth - oldHealth;
+      
+      // Show heal effect
+      this._ShowHealEffect(actualHeal);
+      
+      // Add combat log
+      this._AddCombatLogAnimated(`💚 Vous vous soignez et récupérez ${actualHeal} points de vie!`, 'heal');
+      
+      // Update health bars
+      this._UpdateHealthBars();
+      
+      // Play heal sound
+      this._PlayHealSound();
+      
+      // End player turn and start robot turn
+      setTimeout(() => {
+        this._playerTurn = false;
+        this._isAnimating = false;
+        
+        // Change camera angle for next turn
+        this._ChangeCameraAngle();
+        
+        // Load new question for next turn
+        this._LoadRandomQuiz();
+        
+        // Robot automatically chooses quiz
+        this._StartRobotTurn();
+      }, 2000);
+    }
+    
+    _ShowHealEffect(healAmount) {
+      // Create floating heal text
+      const floatingText = document.createElement('div');
+      floatingText.textContent = `+${healAmount}`;
+      floatingText.style.cssText = `
+        position: fixed;
+        color: #27ae60;
+        font-size: 28px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        pointer-events: none;
+        z-index: 9999;
+        animation: floatingHeal 2s ease-out forwards;
+      `;
+      
+      // Position on player side
+      floatingText.style.left = '25%';
+      floatingText.style.top = '20%';
+      
+      // Add floating heal animation if not exists
+      if (!document.querySelector('#floatingHealStyles')) {
+        const style = document.createElement('style');
+        style.id = 'floatingHealStyles';
+        style.textContent = `
+          @keyframes floatingHeal {
+            0% {
+              transform: translateY(0) scale(1);
+              opacity: 1;
+            }
+            50% {
+              transform: translateY(-30px) scale(1.2);
+              opacity: 1;
+            }
+            100% {
+              transform: translateY(-60px) scale(0.8);
+              opacity: 0;
+            }
+          }
+          .heal-log {
+            color: #27ae60 !important;
+            text-shadow: 0 0 10px rgba(39, 174, 96, 0.5);
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      document.body.appendChild(floatingText);
+      
+      // Remove after animation
+      setTimeout(() => {
+        if (floatingText.parentNode) {
+          floatingText.parentNode.removeChild(floatingText);
+        }
+      }, 2000);
+      
+      // Create heal particles
+      this._CreateHealParticles();
+    }
+    
+    _CreateHealParticles() {
+      const combatPanel = document.querySelector('.combat-panel');
+      if (!combatPanel) return;
+      
+      for (let i = 0; i < 15; i++) {
+        const particle = document.createElement('div');
+        particle.style.position = 'absolute';
+        particle.style.width = '8px';
+        particle.style.height = '8px';
+        particle.style.background = '#27ae60';
+        particle.style.borderRadius = '50%';
+        particle.style.pointerEvents = 'none';
+        particle.style.zIndex = '1200';
+        particle.style.boxShadow = '0 0 10px #27ae60';
+        
+        const startX = Math.random() * combatPanel.offsetWidth * 0.5; // Left side for player
+        const startY = Math.random() * combatPanel.offsetHeight;
+        particle.style.left = startX + 'px';
+        particle.style.top = startY + 'px';
+        
+        combatPanel.appendChild(particle);
+        
+        // Animate the particle
+        const animation = particle.animate([
+          { 
+            transform: 'translate(0, 0) scale(1)', 
+            opacity: 1 
+          },
+          { 
+            transform: `translate(${(Math.random() - 0.5) * 100}px, ${-50 - Math.random() * 50}px) scale(0)`, 
+            opacity: 0 
+          }
+        ], {
+          duration: 1500 + Math.random() * 500,
+          easing: 'ease-out'
+        });
+        
+        animation.onfinish = () => particle.remove();
+      }
+    }
+    
+    _PlayHealSound() {
+      this._PlayDynamicSound(523.25, 0.3, 0.4); // C5 note for heal
+      setTimeout(() => {
+        this._PlayDynamicSound(659.25, 0.3, 0.4); // E5 note
+      }, 200);
+      setTimeout(() => {
+        this._PlayDynamicSound(783.99, 0.3, 0.6); // G5 note
+      }, 400);
     }
 
     get IsInCombat() {
