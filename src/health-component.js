@@ -84,6 +84,13 @@ export const health_component = (() => {
     }
 
     _OnDamage(msg) {
+      // Check if in turn-based combat mode
+      const combatSystem = this._parent._parent.Get('combat-system');
+      if (combatSystem && combatSystem.GetComponent('CombatSystem').IsInCombat) {
+        // Ignore damage during turn-based combat - combat system handles health
+        return;
+      }
+      
       this._health = Math.max(0.0, this._health - msg.value);
       if (this._health == 0) {
         this._OnDeath(msg.attacker);

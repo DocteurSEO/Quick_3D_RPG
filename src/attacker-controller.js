@@ -20,6 +20,12 @@ export const attack_controller = (() => {
     }
 
     _OnAnimAction(m) {
+      // Check if in turn-based combat mode - disable real-time damage
+      const combatSystem = this._parent._parent.Get('combat-system');
+      if (combatSystem && combatSystem.GetComponent('CombatSystem').IsInCombat) {
+        return; // No real-time damage during turn-based combat
+      }
+      
       if (m.action != this._action) {
         this._action = m.action;
         this._timeElapsed = 0.0;

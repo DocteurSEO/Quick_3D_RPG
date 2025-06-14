@@ -58,8 +58,11 @@ export const player_input = (() => {
       ray.direction.set(pos.x, pos.y, 0.5).unproject(
           this._params.camera).sub(ray.origin).normalize();
 
-      // hack
-      document.getElementById('quest-ui').style.visibility = 'hidden';
+      // hack - check if element exists first
+      const questUI = document.getElementById('quest-ui');
+      if (questUI) {
+        questUI.style.visibility = 'hidden';
+      }
 
       for (let p of pickables) {
         // GOOD ENOUGH

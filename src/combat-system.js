@@ -54,7 +54,10 @@ export const combat_system = (() => {
     }
 
     InitComponent() {
-      this._RegisterHandler('combat.start', (m) => { this._StartCombat(m); });
+      console.log('✅ CombatSystem initialized');
+      this._RegisterHandler('combat.start', (m) => { 
+        this._StartCombat(m); 
+      });
       this._RegisterHandler('combat.end', (m) => { this._EndCombat(m); });
     }
 
@@ -86,18 +89,6 @@ export const combat_system = (() => {
         });
       });
       
-      // Test button for debugging
-      document.getElementById('test-combat').addEventListener('click', () => {
-        console.log('Test combat button clicked');
-        this._StartCombat({
-          monster: {
-            _health: 100,
-            _maxHealth: 100,
-            Name: 'Test Monster',
-            _position: { x: 0, y: 0, z: 0 }
-          }
-        });
-      });
       
       // Initialize selection
       this._UpdateMenuSelection();
@@ -186,9 +177,11 @@ export const combat_system = (() => {
     }
 
     _StartCombat(message) {
-      if (this._isInCombat) return;
+      if (this._isInCombat) {
+        return;
+      }
       
-      console.log('Starting combat with:', message.monster);
+      console.log('⚔️ STARTING COMBAT with:', message.monster.Name || 'Unknown Monster');
       this._isInCombat = true;
       this._currentMonster = message.monster;
       this._playerTurn = true;
@@ -231,18 +224,12 @@ export const combat_system = (() => {
     }
 
     _EndCombat(message) {
-      if (!this._isInCombat) return;
+      if (!this._isInCombat) {
+        console.log('⚠️ _EndCombat called but not in combat');
+        return;
+      }
       
-      this._isInCombat = false;
-      
-      // Transition camera back
-      this._isTransitioning = true;
-      this._cameraTransitionProgress = 0;
-      
-      // Hide combat UI
-      setTimeout(() => {
-        this._HideCombatUI();
-      }, 1000);
+      console.log('🏁 ENDING COMBAT, player won:', message.playerWon);
       
       // Award XP if player won
       if (message.playerWon) {
@@ -252,7 +239,18 @@ export const combat_system = (() => {
         this._AddCombatLog('Defeat...');
       }
       
+      // Hide combat UI immediately
+      this._HideCombatUI();
+      
+      // Set combat state to false
+      this._isInCombat = false;
       this._currentMonster = null;
+      
+      // Transition camera back
+      this._isTransitioning = true;
+      this._cameraTransitionProgress = 0;
+      
+      console.log('✅ Combat ended, isInCombat:', this._isInCombat);
     }
 
     _ShowCombatUI() {
@@ -333,13 +331,13 @@ export const combat_system = (() => {
         if (this._currentMonster && this._currentMonster._health <= 0) {
           // Kill the monster in the game world
           this._KillMonster();
-          this.Broadcast({
-            topic: 'combat.end',
+          console.log('Monster defeated, ending combat');
+          this._EndCombat({
             playerWon: true
           });
         } else if (this._playerHealth <= 0) {
-          this.Broadcast({
-            topic: 'combat.end',
+          console.log('Player defeated, ending combat');
+          this._EndCombat({
             playerWon: false
           });
         } else {
@@ -387,6 +385,54 @@ export const combat_system = (() => {
       }, 2000);
     }
 
+    _TriggerMonsterAttack() {
+      if (this._currentMonster && this._currentMonster._target) {
+        // Simple attack animation - make monster slightly bigger and red briefly
+        const originalScale = this._currentMonster._target.scale.clone();
+        const originalColor = new THREE.Color();
+        
+        this._currentMonster._target.traverse(c => {
+          if (c.material && c.material.color) {
+            originalColor.copy(c.material.color);
+            c.material.color.setHex(0xff0000); // Red flash
+          }
+        });
+        
+        this._currentMonster._target.scale.multiplyScalar(1.1);
+        
+        // Reset after 300ms
+        setTimeout(() => {
+          this._currentMonster._target.scale.copy(originalScale);
+          this._currentMonster._target.traverse(c => {
+            if (c.material && c.material.color) {
+              c.material.color.copy(originalColor);
+            }
+          });
+        }, 300);
+      }
+    }
+    
+    _KillMonster() {
+      if (this._currentMonster && this._currentMonster._target) {
+        // Remove monster from scene
+        this._params.scene.remove(this._currentMonster._target);
+        
+        // Mark monster as dead
+        this._currentMonster._health = 0;
+        
+        // Remove from entity manager
+        const entities = this._params.target._parent._entities;
+        for (let [name, entity] of entities) {
+          const npcController = entity.GetComponent('NPCController');
+          if (npcController === this._currentMonster) {
+            console.log('🗑️ Removing defeated enemy:', name);
+            this._params.target._parent.Remove(entity);
+            break;
+          }
+        }
+      }
+    }
+
     _AddCombatLog(message) {
       const log = document.getElementById('combat-log');
       const p = document.createElement('p');
@@ -417,7 +463,7 @@ export const combat_system = (() => {
     }
 
     _UpdateCameraTransition(timeElapsed) {
-      this._cameraTransitionProgress += timeElapsed * 2; // 2 seconds transition
+      this._cameraTransitionProgress += timeElapsed * 3; // Faster transition - 0.33 seconds
       
       if (this._cameraTransitionProgress >= 1) {
         this._cameraTransitionProgress = 1;
@@ -434,11 +480,21 @@ export const combat_system = (() => {
         const currentLookAt = new THREE.Vector3().lerpVectors(this._originalCameraLookAt, this._combatCameraLookAt, easedT);
         this._params.camera.lookAt(currentLookAt);
       } else {
-        // Transition back to original camera
+        // Transition back to original camera - disable third person camera during transition
         this._params.camera.position.lerpVectors(this._combatCameraPosition, this._originalCameraPosition, easedT);
         
         const currentLookAt = new THREE.Vector3().lerpVectors(this._combatCameraLookAt, this._originalCameraLookAt, easedT);
         this._params.camera.lookAt(currentLookAt);
+        
+        // Re-enable third person camera when transition is done
+        if (!this._isTransitioning) {
+          if (this._params.target && this._params.target._parent) {
+            const camera = this._params.target._parent.Get('player-camera');
+            if (camera) {
+              camera.GetComponent('ThirdPersonCamera')._enabled = true;
+            }
+          }
+        }
       }
     }
 

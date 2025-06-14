@@ -26,12 +26,17 @@ export const player_entity = (() => {
   };
   
   class BasicCharacterControllerProxy {
-    constructor(animations) {
+    constructor(animations, controller) {
       this._animations = animations;
+      this._controller = controller;
     }
   
     get animations() {
       return this._animations;
+    }
+    
+    get controller() {
+      return this._controller;
     }
   };
 
@@ -51,7 +56,7 @@ export const player_entity = (() => {
   
       this._animations = {};
       this._stateMachine = new CharacterFSM(
-          new BasicCharacterControllerProxy(this._animations));
+          new BasicCharacterControllerProxy(this._animations, this));
   
       this._LoadModels();
     }
@@ -119,41 +124,51 @@ export const player_entity = (() => {
     }
 
     _FindIntersections(pos) {
-      const _IsAlive = (c) => {
-        const h = c.entity.GetComponent('HealthComponent');
-        if (!h) {
-          return true;
-        }
-        return h._health > 0;
-      };
-
       const grid = this.GetComponent('SpatialGridController');
-      const nearby = grid.FindNearbyEntities(5).filter(e => _IsAlive(e));
+      const nearby = grid.FindNearbyEntities(5);
       const collisions = [];
+      
+      // Update debug info
+      document.getElementById('robot-pos').textContent = `${pos.x.toFixed(1)},${pos.y.toFixed(1)},${pos.z.toFixed(1)}`;
+      document.getElementById('enemy-count').textContent = nearby.length;
+      
+      const combatSystem = this._parent._parent.Get('combat-system');
+      if (combatSystem) {
+        const isInCombat = combatSystem.GetComponent('CombatSystem').IsInCombat;
+        document.getElementById('combat-status').textContent = isInCombat ? 'In combat' : 'Exploring';
+      }
 
       for (let i = 0; i < nearby.length; ++i) {
         const e = nearby[i].entity;
         const d = ((pos.x - e._position.x) ** 2 + (pos.z - e._position.z) ** 2) ** 0.5;
 
-        // Check for combat encounters
-        if (d <= 3) {
+        // Check for combat encounters with IA001
+        if (d <= 5) {
           const npcController = e.GetComponent('NPCController');
-          if (npcController && npcController._health > 0) {
+          if (npcController && npcController._params && npcController._params.isIA001) {
             // Check if not already in combat
             const combatSystem = this._parent._parent.Get('combat-system');
             if (combatSystem && !combatSystem.GetComponent('CombatSystem').IsInCombat) {
-              // Trigger combat
-              this.Broadcast({
-                topic: 'combat.start',
-                monster: npcController
-              });
+              console.log('🔥 COMBAT TRIGGERED WITH IA001! Distance:', d.toFixed(2));
+              
+              // Trigger combat directly
+              const combatComponent = combatSystem.GetComponent('CombatSystem');
+              if (combatComponent) {
+                combatComponent._StartCombat({
+                  topic: 'combat.start',
+                  monster: npcController
+                });
+              }
             }
           }
         }
 
-        // HARDCODED collision detection
-        if (d <= 4) {
-          collisions.push(nearby[i].entity);
+        // Regular collision detection (avoid obstacles during non-combat)
+        const combatSystem = this._parent._parent.Get('combat-system');
+        if (!combatSystem || !combatSystem.GetComponent('CombatSystem').IsInCombat) {
+          if (d <= 4) {
+            collisions.push(nearby[i].entity);
+          }
         }
       }
       return collisions;

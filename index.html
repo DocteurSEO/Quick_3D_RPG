@@ -12,8 +12,8 @@
   <script src="./src/main.js" type="module">
   </script>
   <div class="container" id="container">
-    <!-- Combat UI -->
-    <div id="combat-ui" class="combat-ui">
+    <!-- Combat UI for turn-based battles -->
+    <div id="combat-ui" class="combat-ui hidden">
       <!-- Health bars at top -->
       <div class="health-overlay">
         <div class="health-bar-container player-health">
@@ -23,7 +23,7 @@
           </div>
         </div>
         <div class="health-bar-container monster-health">
-          <span id="monster-name">MONSTER</span>
+          <span id="monster-name">IA001</span>
           <div class="health-bar">
             <div id="monster-health" class="health-fill"></div>
           </div>
@@ -76,7 +76,7 @@
         
         <!-- Combat log -->
         <div id="combat-log" class="combat-log">
-          <p>Combat started!</p>
+          <p>Ready for combat!</p>
         </div>
       </div>
     </div>
@@ -86,8 +86,13 @@
       <span>+50 XP</span>
     </div>
     
-    <!-- Test Button -->
-    <button id="test-combat" style="position: fixed; top: 10px; left: 10px; z-index: 2000; padding: 10px; background: red; color: white; border: none; border-radius: 5px;">Test Combat</button>
+    
+    <!-- Debug Info -->
+    <div id="debug-info" style="position: fixed; top: 10px; left: 10px; z-index: 2000; color: white; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px;">
+      <div>Robot Position: <span id="robot-pos">0,0,0</span></div>
+      <div>Nearby Objects: <span id="enemy-count">0</span></div>
+      <div>Status: <span id="combat-status">Exploring</span></div>
+    </div>
   </div>
 </body>
 </html>
