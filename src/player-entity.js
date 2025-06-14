@@ -66,23 +66,39 @@ export const player_entity = (() => {
 
     _LoadModels() {
       const loader = new FBXLoader();
-      loader.setPath('./resources/guard/');
-      loader.load('castle_guard_01.fbx', (fbx) => {
+      loader.setPath('./resources/robot/');
+      loader.load('RB2.fbx', (fbx) => {
         this._target = fbx;
-        this._target.scale.setScalar(0.035);
+        this._target.scale.setScalar(0.01);
         this._params.scene.add(this._target);
   
         this._bones = {};
 
-        for (let b of this._target.children[1].skeleton.bones) {
-          this._bones[b.name] = b;
+        if (this._target.children[0] && this._target.children[0].skeleton) {
+          for (let b of this._target.children[0].skeleton.bones) {
+            this._bones[b.name] = b;
+          }
         }
 
         this._target.traverse(c => {
           c.castShadow = true;
           c.receiveShadow = true;
-          if (c.material && c.material.map) {
-            c.material.map.encoding = THREE.sRGBEncoding;
+          if (c.material) {
+            // Load textures manually from the textures directory
+            const textureLoader = new THREE.TextureLoader();
+            
+            // Load base color texture
+            const baseColorTexture = textureLoader.load('./resources/textures/RB2_Material.006_BaseColor.png');
+            baseColorTexture.encoding = THREE.sRGBEncoding;
+            c.material.map = baseColorTexture;
+            
+            // Load emissive texture
+            const emissiveTexture = textureLoader.load('./resources/textures/RB2_Material.006_Emissive.png');
+            emissiveTexture.encoding = THREE.sRGBEncoding;
+            c.material.emissiveMap = emissiveTexture;
+            c.material.emissive = new THREE.Color(0x444444); // Slight emissive glow
+            
+            c.material.needsUpdate = true;
           }
         });
 
@@ -92,30 +108,13 @@ export const player_entity = (() => {
             bones: this._bones,
         });
 
-        this._mixer = new THREE.AnimationMixer(this._target);
+        this._animations['idle'] = { clip: null, action: null };
+        this._animations['walk'] = { clip: null, action: null };
+        this._animations['run'] = { clip: null, action: null };
+        this._animations['attack'] = { clip: null, action: null };
+        this._animations['death'] = { clip: null, action: null };
 
-        const _OnLoad = (animName, anim) => {
-          const clip = anim.animations[0];
-          const action = this._mixer.clipAction(clip);
-    
-          this._animations[animName] = {
-            clip: clip,
-            action: action,
-          };
-        };
-
-        this._manager = new THREE.LoadingManager();
-        this._manager.onLoad = () => {
-          this._stateMachine.SetState('idle');
-        };
-  
-        const loader = new FBXLoader(this._manager);
-        loader.setPath('./resources/guard/');
-        loader.load('Sword And Shield Idle.fbx', (a) => { _OnLoad('idle', a); });
-        loader.load('Sword And Shield Run.fbx', (a) => { _OnLoad('run', a); });
-        loader.load('Sword And Shield Walk.fbx', (a) => { _OnLoad('walk', a); });
-        loader.load('Sword And Shield Slash.fbx', (a) => { _OnLoad('attack', a); });
-        loader.load('Sword And Shield Death.fbx', (a) => { _OnLoad('death', a); });
+        this._stateMachine.SetState('idle');
       });
     }
 
@@ -136,7 +135,23 @@ export const player_entity = (() => {
         const e = nearby[i].entity;
         const d = ((pos.x - e._position.x) ** 2 + (pos.z - e._position.z) ** 2) ** 0.5;
 
-        // HARDCODED
+        // Check for combat encounters
+        if (d <= 3) {
+          const npcController = e.GetComponent('NPCController');
+          if (npcController && npcController._health > 0) {
+            // Check if not already in combat
+            const combatSystem = this._parent._parent.Get('combat-system');
+            if (combatSystem && !combatSystem.GetComponent('CombatSystem').IsInCombat) {
+              // Trigger combat
+              this.Broadcast({
+                topic: 'combat.start',
+                monster: npcController
+              });
+            }
+          }
+        }
+
+        // HARDCODED collision detection
         if (d <= 4) {
           collisions.push(nearby[i].entity);
         }
@@ -149,11 +164,26 @@ export const player_entity = (() => {
         return;
       }
 
+      // Check if in combat mode - disable movement
+      const combatSystem = this._parent._parent.Get('combat-system');
+      if (combatSystem && combatSystem.GetComponent('CombatSystem').IsInCombat) {
+        // Robot floating animation only during combat
+        if (this._target) {
+          const time = Date.now() * 0.002;
+          this._target.position.y = 2.0 + Math.sin(time) * 0.5;
+          this._target.rotation.y += timeInSeconds * 0.5;
+        }
+        return;
+      }
+
       const input = this.GetComponent('BasicCharacterControllerInput');
       this._stateMachine.Update(timeInSeconds, input);
 
-      if (this._mixer) {
-        this._mixer.update(timeInSeconds);
+      // Robot floating animation - higher floating motion
+      if (this._target) {
+        const time = Date.now() * 0.002;
+        this._target.position.y = 2.0 + Math.sin(time) * 0.5; // Float higher with more movement
+        this._target.rotation.y += timeInSeconds * 0.5; // Gentle rotation while idle
       }
 
       // HARDCODED

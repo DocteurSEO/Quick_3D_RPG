@@ -67,6 +67,12 @@ export const npc_entity = (() => {
     InitComponent() {
       this._RegisterHandler('health.death', (m) => { this._OnDeath(m); });
       this._RegisterHandler('update.position', (m) => { this._OnPosition(m); });
+      this._RegisterHandler('player.nearby', (m) => { this._OnPlayerNearby(m); });
+      
+      // Add health and combat properties
+      this._health = 100;
+      this._maxHealth = 100;
+      this.Name = this._params.resourceName.replace('.fbx', '');
     }
 
     _OnDeath(msg) {
@@ -78,6 +84,10 @@ export const npc_entity = (() => {
         this._target.position.copy(m.value);
         this._target.position.y = 0.35;
       }
+    }
+
+    _OnPlayerNearby(message) {
+      // This handler is no longer needed since combat is triggered from player
     }
 
     _LoadModels() {

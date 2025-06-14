@@ -18,6 +18,7 @@ import {spatial_grid_controller} from './spatial-grid-controller.js';
 import {inventory_controller} from './inventory-controller.js';
 import {equip_weapon_component} from './equip-weapon-component.js';
 import {attack_controller} from './attacker-controller.js';
+import {combat_system} from './combat-system.js';
 
 
 const _VS = `
@@ -122,9 +123,7 @@ class HackNSlashDemo {
   }
 
   _LoadControllers() {
-    const ui = new entity.Entity();
-    ui.AddComponent(new ui_controller.UIController());
-    this._entityManager.Add(ui, 'ui');
+    // Combat system will be loaded after player
   }
 
   _LoadSky() {
@@ -264,7 +263,7 @@ class HackNSlashDemo {
         grid: this._grid,
     }));
     girl.AddComponent(new player_input.PickableComponent());
-    girl.AddComponent(new quest_component.QuestComponent());
+    // girl.AddComponent(new quest_component.QuestComponent()); // Removed since no UI
     girl.SetPosition(new THREE.Vector3(30, 0, 0));
     this._entityManager.Add(girl);
 
@@ -273,9 +272,9 @@ class HackNSlashDemo {
     player.AddComponent(new player_entity.BasicCharacterController(params));
     player.AddComponent(
       new equip_weapon_component.EquipWeapon({anchor: 'RightHandIndex1'}));
-    player.AddComponent(new inventory_controller.InventoryController(params));
+    // player.AddComponent(new inventory_controller.InventoryController(params)); // Removed since no UI
     player.AddComponent(new health_component.HealthComponent({
-        updateUI: true,
+        updateUI: false, // Disabled UI updates since we removed UI
         health: 100,
         maxHealth: 100,
         strength: 50,
@@ -290,23 +289,7 @@ class HackNSlashDemo {
     player.AddComponent(new attack_controller.AttackController({timing: 0.7}));
     this._entityManager.Add(player, 'player');
 
-    player.Broadcast({
-        topic: 'inventory.add',
-        value: axe.Name,
-        added: false,
-    });
-
-    player.Broadcast({
-        topic: 'inventory.add',
-        value: sword.Name,
-        added: false,
-    });
-
-    player.Broadcast({
-        topic: 'inventory.equip',
-        value: sword.Name,
-        added: false,
-    });
+    // Inventory broadcasts removed since no inventory system
 
     const camera = new entity.Entity();
     camera.AddComponent(
@@ -314,6 +297,15 @@ class HackNSlashDemo {
             camera: this._camera,
             target: this._entityManager.Get('player')}));
     this._entityManager.Add(camera, 'player-camera');
+    
+    // Add combat system after player is created
+    const combatEntity = new entity.Entity();
+    combatEntity.AddComponent(new combat_system.CombatSystem({
+      camera: this._camera,
+      target: this._entityManager.Get('player'),
+      scene: this._scene
+    }));
+    this._entityManager.Add(combatEntity, 'combat-system');
 
     for (let i = 0; i < 50; ++i) {
       const monsters = [

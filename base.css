@@ -6,12 +6,258 @@ body {
   margin: 0;
   padding: 0;
   overscroll-behavior: none;
+  font-family: 'IM Fell French Canon', serif;
 }
 
 .container {
   width: 100%;
   height: 100%;
   position: relative;
+}
+
+/* Combat UI - Pokemon Style */
+.combat-ui {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  display: block;
+  z-index: 1000;
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.combat-ui.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.9);
+}
+
+.combat-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 3px solid #ffffff;
+  border-radius: 15px;
+  padding: 20px;
+  width: 400px;
+  max-width: 45vw;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+  animation: slideUp 0.3s ease;
+  pointer-events: all;
+  font-family: 'Courier New', monospace;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Health overlay at top of screen */
+.health-overlay {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 50px;
+  z-index: 1001;
+  pointer-events: all;
+}
+
+.health-bar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 15px 20px;
+  border: 2px solid #ffffff;
+  border-radius: 10px;
+}
+
+.health-bar-container span {
+  color: white;
+  font-weight: bold;
+  font-size: 1.1em;
+  font-family: 'Courier New', monospace;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.health-bar {
+  width: 200px;
+  height: 20px;
+  background: rgba(50, 50, 50, 0.8);
+  border: 2px solid #ffffff;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.health-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff4444, #ff6666);
+  width: 100%;
+  transition: width 0.3s ease;
+}
+
+.player-health .health-fill {
+  background: linear-gradient(90deg, #44ff44, #66ff66);
+}
+
+/* Action Menu */
+.action-menu {
+  margin-bottom: 15px;
+}
+
+.menu-title {
+  color: white;
+  font-size: 1.2em;
+  margin-bottom: 15px;
+  font-weight: bold;
+  border-bottom: 2px solid #ffffff;
+  padding-bottom: 8px;
+}
+
+.menu-options, .quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu-option, .quiz-option {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  background: rgba(20, 20, 20, 0.9);
+  border: 2px solid #333333;
+  border-radius: 8px;
+  color: white;
+  font-size: 1.1em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Courier New', monospace;
+}
+
+.menu-option:hover, .quiz-option:hover {
+  background: rgba(40, 40, 40, 0.9);
+  border-color: #ffffff;
+}
+
+.menu-option.selected, .quiz-option.selected {
+  background: rgba(60, 60, 60, 0.9);
+  border-color: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.arrow {
+  color: #ffff00;
+  font-weight: bold;
+  margin-right: 10px;
+  font-size: 1.2em;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.menu-option.selected .arrow, .quiz-option.selected .arrow {
+  opacity: 1;
+}
+
+.option-text {
+  flex: 1;
+}
+
+/* Quiz Section */
+.quiz-section {
+  margin-bottom: 15px;
+}
+
+.quiz-question {
+  color: white;
+  font-size: 1.2em;
+  margin-bottom: 15px;
+  font-weight: bold;
+  border-bottom: 2px solid #ffffff;
+  padding-bottom: 8px;
+  font-family: 'Courier New', monospace;
+}
+
+.quiz-option.correct {
+  background: rgba(34, 197, 94, 0.3);
+  border-color: rgba(34, 197, 94, 0.8);
+}
+
+.quiz-option.incorrect {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.8);
+}
+
+/* Combat Log */
+
+.combat-log {
+  background: rgba(10, 10, 10, 0.9);
+  border: 2px solid #333333;
+  border-radius: 8px;
+  padding: 10px;
+  height: 80px;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+}
+
+.combat-log p {
+  color: white;
+  margin: 3px 0;
+  font-size: 0.9em;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.xp-notification {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(34, 197, 94, 0.9);
+  color: white;
+  padding: 20px 40px;
+  border-radius: 15px;
+  font-size: 2em;
+  font-weight: bold;
+  z-index: 1100;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(34, 197, 94, 0.6);
+  animation: xpPop 2s ease;
+}
+
+.xp-notification.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes xpPop {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+.hidden {
+  display: none !important;
 }
 
 .ui {

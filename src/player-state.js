@@ -64,19 +64,22 @@ export const player_state = (() => {
   
     Enter(prevState) {
       this._action = this._parent._proxy._animations['attack'].action;
-      const mixer = this._action.getMixer();
-      mixer.addEventListener('finished', this._FinishedCallback);
-  
-      if (prevState) {
-        const prevAction = this._parent._proxy._animations[prevState.Name].action;
-  
-        this._action.reset();  
-        this._action.setLoop(THREE.LoopOnce, 1);
-        this._action.clampWhenFinished = true;
-        this._action.crossFadeFrom(prevAction, 0.2, true);
-        this._action.play();
-      } else {
-        this._action.play();
+      if (this._action) {
+        const mixer = this._action.getMixer();
+        mixer.addEventListener('finished', this._FinishedCallback);
+    
+        if (prevState) {
+          const prevAction = this._parent._proxy._animations[prevState.Name].action;
+          if (prevAction) {
+            this._action.reset();  
+            this._action.setLoop(THREE.LoopOnce, 1);
+            this._action.clampWhenFinished = true;
+            this._action.crossFadeFrom(prevAction, 0.2, true);
+          }
+          this._action.play();
+        } else {
+          this._action.play();
+        }
       }
     }
   
@@ -110,24 +113,27 @@ export const player_state = (() => {
   
     Enter(prevState) {
       const curAction = this._parent._proxy._animations['walk'].action;
-      if (prevState) {
-        const prevAction = this._parent._proxy._animations[prevState.Name].action;
-  
-        curAction.enabled = true;
-  
-        if (prevState.Name == 'run') {
-          const ratio = curAction.getClip().duration / prevAction.getClip().duration;
-          curAction.time = prevAction.time * ratio;
+      if (curAction) {
+        if (prevState) {
+          const prevAction = this._parent._proxy._animations[prevState.Name].action;
+          if (prevAction) {
+            curAction.enabled = true;
+    
+            if (prevState.Name == 'run') {
+              const ratio = curAction.getClip().duration / prevAction.getClip().duration;
+              curAction.time = prevAction.time * ratio;
+            } else {
+              curAction.time = 0.0;
+              curAction.setEffectiveTimeScale(1.0);
+              curAction.setEffectiveWeight(1.0);
+            }
+    
+            curAction.crossFadeFrom(prevAction, 0.1, true);
+          }
+          curAction.play();
         } else {
-          curAction.time = 0.0;
-          curAction.setEffectiveTimeScale(1.0);
-          curAction.setEffectiveWeight(1.0);
+          curAction.play();
         }
-  
-        curAction.crossFadeFrom(prevAction, 0.1, true);
-        curAction.play();
-      } else {
-        curAction.play();
       }
     }
   
@@ -158,24 +164,27 @@ export const player_state = (() => {
   
     Enter(prevState) {
       const curAction = this._parent._proxy._animations['run'].action;
-      if (prevState) {
-        const prevAction = this._parent._proxy._animations[prevState.Name].action;
-  
-        curAction.enabled = true;
-  
-        if (prevState.Name == 'walk') {
-          const ratio = curAction.getClip().duration / prevAction.getClip().duration;
-          curAction.time = prevAction.time * ratio;
+      if (curAction) {
+        if (prevState) {
+          const prevAction = this._parent._proxy._animations[prevState.Name].action;
+          if (prevAction) {
+            curAction.enabled = true;
+    
+            if (prevState.Name == 'walk') {
+              const ratio = curAction.getClip().duration / prevAction.getClip().duration;
+              curAction.time = prevAction.time * ratio;
+            } else {
+              curAction.time = 0.0;
+              curAction.setEffectiveTimeScale(1.0);
+              curAction.setEffectiveWeight(1.0);
+            }
+    
+            curAction.crossFadeFrom(prevAction, 0.1, true);
+          }
+          curAction.play();
         } else {
-          curAction.time = 0.0;
-          curAction.setEffectiveTimeScale(1.0);
-          curAction.setEffectiveWeight(1.0);
+          curAction.play();
         }
-  
-        curAction.crossFadeFrom(prevAction, 0.1, true);
-        curAction.play();
-      } else {
-        curAction.play();
       }
     }
   
@@ -206,16 +215,20 @@ export const player_state = (() => {
   
     Enter(prevState) {
       const idleAction = this._parent._proxy._animations['idle'].action;
-      if (prevState) {
-        const prevAction = this._parent._proxy._animations[prevState.Name].action;
-        idleAction.time = 0.0;
-        idleAction.enabled = true;
-        idleAction.setEffectiveTimeScale(1.0);
-        idleAction.setEffectiveWeight(1.0);
-        idleAction.crossFadeFrom(prevAction, 0.25, true);
-        idleAction.play();
-      } else {
-        idleAction.play();
+      if (idleAction) {
+        if (prevState) {
+          const prevAction = this._parent._proxy._animations[prevState.Name].action;
+          if (prevAction) {
+            idleAction.time = 0.0;
+            idleAction.enabled = true;
+            idleAction.setEffectiveTimeScale(1.0);
+            idleAction.setEffectiveWeight(1.0);
+            idleAction.crossFadeFrom(prevAction, 0.25, true);
+          }
+          idleAction.play();
+        } else {
+          idleAction.play();
+        }
       }
     }
   

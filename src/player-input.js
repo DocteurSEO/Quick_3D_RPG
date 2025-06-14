@@ -77,15 +77,19 @@ export const player_input = (() => {
     _onKeyDown(event) {
       switch (event.keyCode) {
         case 87: // w
+        case 38: // up arrow
           this._keys.forward = true;
           break;
         case 65: // a
+        case 37: // left arrow
           this._keys.left = true;
           break;
         case 83: // s
+        case 40: // down arrow
           this._keys.backward = true;
           break;
         case 68: // d
+        case 39: // right arrow
           this._keys.right = true;
           break;
         case 32: // SPACE
@@ -100,15 +104,19 @@ export const player_input = (() => {
     _onKeyUp(event) {
       switch(event.keyCode) {
         case 87: // w
+        case 38: // up arrow
           this._keys.forward = false;
           break;
         case 65: // a
+        case 37: // left arrow
           this._keys.left = false;
           break;
         case 83: // s
+        case 40: // down arrow
           this._keys.backward = false;
           break;
         case 68: // d
+        case 39: // right arrow
           this._keys.right = false;
           break;
         case 32: // SPACE
