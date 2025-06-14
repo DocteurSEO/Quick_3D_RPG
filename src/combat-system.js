@@ -311,6 +311,9 @@ export const combat_system = (() => {
       // Ensure monster health is properly set
       console.log('🏥 Monster health:', this._currentMonster._health, '/', this._currentMonster._maxHealth);
       
+      // Update XP display at combat start
+      this._UpdateXPDisplay();
+      
       // Load first quiz after a short delay to ensure UI is ready
       setTimeout(() => {
         this._LoadRandomQuiz();
@@ -784,8 +787,9 @@ export const combat_system = (() => {
         // Reset player health
         this._playerHealth = this._playerMaxHealth;
         
-        // Update health bar
+        // Update health bar and XP display
         this._UpdateHealthBars();
+        this._UpdateXPDisplay();
         
         console.log('✅ Player respawned successfully');
       }
