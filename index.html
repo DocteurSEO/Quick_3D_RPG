@@ -86,6 +86,16 @@
       <span>+50 XP</span>
     </div>
     
+    <!-- Player Level & XP Display -->
+    <div id="player-stats" style="position: fixed; top: 10px; right: 10px; z-index: 2000; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; font-family: 'Arial', sans-serif; min-width: 200px;">
+      <div id="player-level" style="font-size: 18px; font-weight: bold; margin-bottom: 10px; text-align: center; color: #FFD700;">Niveau 1</div>
+      <div style="margin-bottom: 5px; font-size: 12px; color: #ccc;">Expérience:</div>
+      <div style="background: #333; border-radius: 10px; height: 20px; margin-bottom: 5px; overflow: hidden; border: 2px solid #555;">
+        <div id="player-xp" style="background: linear-gradient(90deg, #4CAF50, #8BC34A); height: 100%; width: 0%; transition: width 0.5s ease; border-radius: 8px;"></div>
+      </div>
+      <div id="player-xp-text" style="font-size: 12px; text-align: center; color: #ccc;">0/100 XP</div>
+    </div>
+    
     
     <!-- Debug Info -->
     <div id="debug-info" style="position: fixed; top: 10px; left: 10px; z-index: 2000; color: white; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px;">

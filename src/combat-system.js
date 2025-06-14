@@ -49,6 +49,8 @@ export const combat_system = (() => {
       this._playerHealth = 100;
       this._playerMaxHealth = 100;
       this._playerXP = 0;
+      this._playerLevel = 1;
+      this._playerXPToNextLevel = 100; // XP needed for next level
       
       // UI will be initialized when combat starts
       this._keydownHandler = null;
@@ -612,9 +614,135 @@ export const combat_system = (() => {
       xpNotification.querySelector('span').textContent = `+${amount} XP`;
       xpNotification.classList.remove('hidden');
       
+      // Check for level up
+      if (this._playerXP >= this._playerXPToNextLevel) {
+        this._LevelUp();
+      }
+      
+      // Update XP display
+      this._UpdateXPDisplay();
+      
       setTimeout(() => {
         xpNotification.classList.add('hidden');
       }, 2000);
+    }
+
+    _LevelUp() {
+      // Calculate remaining XP after level up
+      const remainingXP = this._playerXP - this._playerXPToNextLevel;
+      
+      // Increase level
+      this._playerLevel++;
+      
+      // Calculate new XP requirement (increases by 50 each level)
+      this._playerXPToNextLevel = 100 + (this._playerLevel - 1) * 50;
+      
+      // Set remaining XP
+      this._playerXP = remainingXP;
+      
+      // Increase player stats
+      this._playerMaxHealth += 20;
+      this._playerHealth = this._playerMaxHealth; // Full heal on level up
+      
+      // Show level up notification
+      this._ShowLevelUpNotification();
+      
+      // Trigger level up effect
+      this._TriggerLevelUpEffect();
+      
+      // Update health bars
+      this._UpdateHealthBars();
+      
+      console.log(`🎉 LEVEL UP! Now level ${this._playerLevel}`);
+      
+      // Check if there's still enough XP for another level
+      if (this._playerXP >= this._playerXPToNextLevel) {
+        setTimeout(() => this._LevelUp(), 1000); // Delay for effect
+      }
+    }
+
+    _UpdateXPDisplay() {
+      // Update XP bar if it exists
+      const xpBar = document.getElementById('player-xp');
+      if (xpBar) {
+        const xpPercent = (this._playerXP / this._playerXPToNextLevel) * 100;
+        xpBar.style.width = xpPercent + '%';
+      }
+      
+      // Update level display
+      const levelDisplay = document.getElementById('player-level');
+      if (levelDisplay) {
+        levelDisplay.textContent = `Niveau ${this._playerLevel}`;
+      }
+      
+      // Update XP text
+      const xpText = document.getElementById('player-xp-text');
+      if (xpText) {
+        xpText.textContent = `${this._playerXP}/${this._playerXPToNextLevel} XP`;
+      }
+    }
+
+    _ShowLevelUpNotification() {
+      // Create or update level up notification
+      let levelUpNotif = document.getElementById('level-up-notification');
+      if (!levelUpNotif) {
+        levelUpNotif = document.createElement('div');
+        levelUpNotif.id = 'level-up-notification';
+        levelUpNotif.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: linear-gradient(45deg, #FFD700, #FFA500);
+          color: #000;
+          padding: 20px 40px;
+          border-radius: 15px;
+          font-size: 24px;
+          font-weight: bold;
+          text-align: center;
+          z-index: 10000;
+          box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+          animation: levelUpPulse 2s ease-in-out;
+        `;
+        document.body.appendChild(levelUpNotif);
+        
+        // Add CSS animation
+        const style = document.createElement('style');
+        style.textContent = `
+          @keyframes levelUpPulse {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      levelUpNotif.innerHTML = `
+        🎉 NIVEAU SUPÉRIEUR ! 🎉<br>
+        <span style="font-size: 18px;">Niveau ${this._playerLevel}</span><br>
+        <span style="font-size: 14px;">+20 PV Max | Soins complets</span>
+      `;
+      
+      levelUpNotif.style.display = 'block';
+      
+      setTimeout(() => {
+        levelUpNotif.style.display = 'none';
+      }, 3000);
+    }
+
+    _TriggerLevelUpEffect() {
+      // Get player position for particle effect
+      const player = this._params.target._parent.Get('player');
+      if (player) {
+        const levelUpSpawner = this._params.target._parent.Get('level-up-spawner');
+        if (levelUpSpawner) {
+          const spawner = levelUpSpawner.GetComponent('LevelUpComponentSpawner');
+          if (spawner) {
+            spawner.Spawn(player._position.clone());
+          }
+        }
+      }
     }
 
     _TriggerMonsterAttack() {
