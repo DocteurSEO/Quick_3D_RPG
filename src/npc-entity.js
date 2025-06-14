@@ -75,13 +75,38 @@ export const npc_entity = (() => {
         this._maxHealth = 150;
         this.Name = 'IA001';
       } else {
-        this._health = 100;
-        this._maxHealth = 100;
+        // Calculate monster stats based on player level if available
+        const playerLevel = this._GetPlayerLevel();
+        const baseHealth = 80;
+        const healthPerLevel = 15;
+        const calculatedHealth = baseHealth + (playerLevel - 1) * healthPerLevel;
+        
+        this._health = calculatedHealth;
+        this._maxHealth = calculatedHealth;
+        this._level = playerLevel; // Store monster level
         this.Name = this._params.name || this._params.resourceName.replace('.fbx', '');
       }
     }
 
-    _OnDeath(msg) {
+    _GetPlayerLevel() {
+      // Try to get player level from combat system
+      try {
+        const entityManager = this._parent;
+        if (entityManager && entityManager._entities) {
+          for (let entity of entityManager._entities) {
+            const combatSystem = entity.GetComponent('CombatSystem');
+            if (combatSystem && combatSystem._playerLevel) {
+              return combatSystem._playerLevel;
+            }
+          }
+        }
+      } catch (e) {
+        console.log('Could not get player level, using default');
+      }
+      return 1; // Default level if combat system not found
+     }
+ 
+     _OnDeath(msg) {
       this._stateMachine.SetState('death');
     }
 

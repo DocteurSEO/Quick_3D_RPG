@@ -332,8 +332,9 @@ export const combat_system = (() => {
       // Award XP if player won
       if (message.playerWon) {
         this._PlayUISound('correct');
-        this._AwardXP(50);
-        this._AddCombatLogAnimated('🎉 Victory! You gained 50 XP!', 'success');
+        const xpReward = this._CalculateXPReward();
+        this._AwardXP(xpReward);
+        this._AddCombatLogAnimated(`🎉 Victory! You gained ${xpReward} XP!`, 'success');
         this._ShowVictoryEffect();
       } else {
         this._PlayUISound('incorrect');
@@ -496,7 +497,12 @@ export const combat_system = (() => {
     }
 
     _LoadRandomQuiz() {
-      const randomIndex = Math.floor(Math.random() * this._quizDatabase.length);
+      // Always load a different quiz from the current one
+      let randomIndex;
+      do {
+        randomIndex = Math.floor(Math.random() * this._quizDatabase.length);
+      } while (this._currentQuiz && this._quizDatabase[randomIndex] === this._currentQuiz);
+      
       this._currentQuiz = this._quizDatabase[randomIndex];
       
       document.getElementById('quiz-question').textContent = this._currentQuiz.question;
@@ -514,6 +520,8 @@ export const combat_system = (() => {
       
       this._selectedQuizIndex = 0;
       this._UpdateQuizSelection();
+      
+      console.log(`📝 Loaded new player quiz: ${this._currentQuiz.question}`);
     }
 
     _HandleQuizAnswer(selectedIndex) {
@@ -532,6 +540,10 @@ export const combat_system = (() => {
       const options = document.querySelectorAll('.quiz-option');
       const correct = this._currentQuiz.correct;
       
+      // Calculate level-based damage
+      const playerDamage = this._CalculatePlayerDamage();
+      const monsterDamage = this._CalculateMonsterDamage();
+      
       // Disable all options
       options.forEach(option => option.disabled = true);
       
@@ -543,15 +555,15 @@ export const combat_system = (() => {
         if (selectedIndex === correct) {
           this._PlayUISound('correct');
           options[selectedIndex].classList.add('correct');
-          this._AddCombatLogAnimated('✅ Correct! You deal damage to the monster!', 'success');
-          this._DamageMonster(25);
+          this._AddCombatLogAnimated(`✅ Correct! You deal ${playerDamage} damage to the monster!`, 'success');
+          this._DamageMonster(playerDamage);
           this._ShakeScreen(false); // Victory shake
         } else {
           this._PlayUISound('incorrect');
           options[selectedIndex].classList.add('incorrect');
           options[correct].classList.add('correct');
-          this._AddCombatLogAnimated('❌ Wrong answer! The monster attacks you!', 'error');
-          this._DamagePlayer(20);
+          this._AddCombatLogAnimated(`❌ Wrong answer! The monster deals ${monsterDamage} damage to you!`, 'error');
+          this._DamagePlayer(monsterDamage);
           this._ShakeScreen(true); // Damage shake
           
           // Trigger monster attack animation
@@ -575,11 +587,10 @@ export const combat_system = (() => {
               playerWon: false
             });
           } else {
-            // Continue combat - return to action menu
-            this._playerTurn = true;
+            // Continue combat - start robot turn
+            this._playerTurn = false;
             this._isAnimating = false;
-            this._ShowActionMenu();
-            this._LoadRandomQuiz(); // Load new quiz for next turn
+            this._StartRobotTurn();
           }
         }, 2000);
       }, 500);
@@ -588,25 +599,295 @@ export const combat_system = (() => {
     _DamageMonster(damage) {
       if (this._currentMonster) {
         this._currentMonster._health = Math.max(0, this._currentMonster._health - damage);
+        
+        // Add damage animation
+        const monsterHealthBar = document.getElementById('monster-health');
+        if (monsterHealthBar) {
+          monsterHealthBar.style.animation = 'damageShake 0.5s ease-out';
+          setTimeout(() => {
+            monsterHealthBar.style.animation = '';
+          }, 500);
+        }
+        
+        // Show floating damage text
+        this._ShowFloatingDamage(damage, 'monster');
+        
         this._UpdateHealthBars();
+        console.log(`Monster took ${damage} damage. Health: ${this._currentMonster._health}/${this._currentMonster._maxHealth}`);
       }
+    }
+
+    _ShowFloatingDamage(damage, target) {
+      const floatingText = document.createElement('div');
+      floatingText.textContent = `-${damage}`;
+      floatingText.style.cssText = `
+        position: fixed;
+        color: #e74c3c;
+        font-size: 24px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        pointer-events: none;
+        z-index: 9999;
+        animation: floatingDamage 2s ease-out forwards;
+      `;
+      
+      // Position based on target
+      if (target === 'player') {
+        floatingText.style.left = '25%';
+        floatingText.style.top = '20%';
+      } else {
+        floatingText.style.right = '25%';
+        floatingText.style.top = '20%';
+      }
+      
+      // Add floating animation if not exists
+      if (!document.querySelector('#floatingDamageStyles')) {
+        const style = document.createElement('style');
+        style.id = 'floatingDamageStyles';
+        style.textContent = `
+          @keyframes floatingDamage {
+            0% {
+              transform: translateY(0) scale(1);
+              opacity: 1;
+            }
+            50% {
+              transform: translateY(-30px) scale(1.2);
+              opacity: 1;
+            }
+            100% {
+              transform: translateY(-60px) scale(0.8);
+              opacity: 0;
+            }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      document.body.appendChild(floatingText);
+      
+      // Remove after animation
+      setTimeout(() => {
+        if (floatingText.parentNode) {
+          floatingText.parentNode.removeChild(floatingText);
+        }
+      }, 2000);
     }
 
     _DamagePlayer(damage) {
       this._playerHealth = Math.max(0, this._playerHealth - damage);
+      
+      // Add damage animation
+      const playerHealthBar = document.getElementById('player-health');
+      if (playerHealthBar) {
+        playerHealthBar.style.animation = 'damageShake 0.5s ease-out';
+        setTimeout(() => {
+          playerHealthBar.style.animation = '';
+        }, 500);
+      }
+      
+      // Show floating damage text
+      this._ShowFloatingDamage(damage, 'player');
+      
       this._UpdateHealthBars();
+      console.log(`Player took ${damage} damage. Health: ${this._playerHealth}/${this._playerMaxHealth}`);
     }
 
     _UpdateHealthBars() {
-      // Update player health bar
-      const playerHealthPercent = (this._playerHealth / this._playerMaxHealth) * 100;
-      document.getElementById('player-health').style.width = playerHealthPercent + '%';
-      
-      // Update monster health bar
-      if (this._currentMonster) {
-        const monsterHealthPercent = (this._currentMonster._health / this._currentMonster._maxHealth) * 100;
-        document.getElementById('monster-health').style.width = monsterHealthPercent + '%';
+      // Update player health bar with enhanced visuals
+      const playerHealthBar = document.getElementById('player-health');
+      if (playerHealthBar) {
+        const healthPercentage = (this._playerHealth / this._playerMaxHealth) * 100;
+        playerHealthBar.style.width = healthPercentage + '%';
+        playerHealthBar.style.transition = 'width 0.5s ease-out';
+        
+        // Color coding based on health percentage
+        if (healthPercentage > 60) {
+          playerHealthBar.style.background = 'linear-gradient(90deg, #27ae60, #2ecc71)';
+        } else if (healthPercentage > 30) {
+          playerHealthBar.style.background = 'linear-gradient(90deg, #f39c12, #e67e22)';
+        } else {
+          playerHealthBar.style.background = 'linear-gradient(90deg, #e74c3c, #c0392b)';
+          playerHealthBar.style.animation = 'healthPulse 1s infinite';
+        }
+        
+        // Add health text overlay
+        this._UpdateHealthText('player', this._playerHealth, this._playerMaxHealth);
       }
+      
+      // Update monster health bar with enhanced visuals
+      const monsterHealthBar = document.getElementById('monster-health');
+      if (monsterHealthBar && this._currentMonster) {
+        const healthPercentage = (this._currentMonster._health / this._currentMonster._maxHealth) * 100;
+        monsterHealthBar.style.width = healthPercentage + '%';
+        monsterHealthBar.style.transition = 'width 0.5s ease-out';
+        
+        // Color coding for monster health
+        if (healthPercentage > 60) {
+          monsterHealthBar.style.background = 'linear-gradient(90deg, #8e44ad, #9b59b6)';
+        } else if (healthPercentage > 30) {
+          monsterHealthBar.style.background = 'linear-gradient(90deg, #d35400, #e67e22)';
+        } else {
+          monsterHealthBar.style.background = 'linear-gradient(90deg, #c0392b, #e74c3c)';
+          monsterHealthBar.style.animation = 'healthPulse 1s infinite';
+        }
+        
+        // Add health text overlay
+        this._UpdateHealthText('monster', this._currentMonster._health, this._currentMonster._maxHealth);
+      }
+    }
+
+    _UpdateHealthText(type, currentHealth, maxHealth) {
+      let healthTextElement = document.getElementById(`${type}-health-text`);
+      
+      if (!healthTextElement) {
+        // Create health text element if it doesn't exist
+        healthTextElement = document.createElement('div');
+        healthTextElement.id = `${type}-health-text`;
+        healthTextElement.style.cssText = `
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: white;
+          font-weight: bold;
+          font-size: 12px;
+          text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+          pointer-events: none;
+          z-index: 10;
+        `;
+        
+        const healthContainer = document.getElementById(`${type}-health-container`);
+        if (healthContainer) {
+          healthContainer.style.position = 'relative';
+          healthContainer.appendChild(healthTextElement);
+        }
+      }
+      
+      healthTextElement.textContent = `${currentHealth}/${maxHealth}`;
+    }
+
+    _MoveCameraToRobot() {
+      if (this._currentMonster && this._currentMonster._entity) {
+        const robotEntity = this._currentMonster._entity;
+        let robotPosition;
+        
+        // Try different ways to get position
+        if (robotEntity.Position) {
+          robotPosition = robotEntity.Position;
+        } else if (robotEntity._position) {
+          robotPosition = robotEntity._position;
+        } else if (robotEntity.position) {
+          robotPosition = robotEntity.position;
+        } else {
+          console.log('❌ Cannot find robot position');
+          return;
+        }
+        
+        const targetX = robotPosition.x + 3; // Better offset for robot view
+        const targetZ = robotPosition.z + 3;
+        const targetY = robotPosition.y + 8; // Higher angle for robot
+        
+        console.log(`📹 Moving camera to robot at (${targetX}, ${targetY}, ${targetZ})`);
+        this._AnimateCameraTo(targetX, targetY, targetZ, 1500);
+      } else {
+        console.log('❌ No current monster or entity for camera movement');
+      }
+    }
+
+    _MoveCameraToPlayer() {
+      const player = this._params.target;
+      if (player) {
+        let playerPosition;
+        
+        // Try different ways to get player position
+        if (player.Position) {
+          playerPosition = player.Position;
+        } else if (player._position) {
+          playerPosition = player._position;
+        } else if (player.position) {
+          playerPosition = player.position;
+        } else {
+          console.log('❌ Cannot find player position');
+          return;
+        }
+        
+        const targetX = playerPosition.x - 3; // Better offset for player view
+        const targetZ = playerPosition.z - 3;
+        const targetY = playerPosition.y + 6; // Lower angle for player
+        
+        console.log(`📹 Moving camera to player at (${targetX}, ${targetY}, ${targetZ})`);
+        this._AnimateCameraTo(targetX, targetY, targetZ, 1500);
+      } else {
+        console.log('❌ No player found for camera movement');
+      }
+    }
+
+    _AnimateCameraTo(targetX, targetY, targetZ, duration) {
+      if (!this._threejs || !this._threejs._camera) return;
+      
+      const camera = this._threejs._camera;
+      const startPos = {
+        x: camera.position.x,
+        y: camera.position.y,
+        z: camera.position.z
+      };
+      
+      const startTime = Date.now();
+      
+      const animateCamera = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        // Smooth easing function
+        const easeProgress = 1 - Math.pow(1 - progress, 3);
+        
+        camera.position.x = startPos.x + (targetX - startPos.x) * easeProgress;
+        camera.position.y = startPos.y + (targetY - startPos.y) * easeProgress;
+        camera.position.z = startPos.z + (targetZ - startPos.z) * easeProgress;
+        
+        // Look at the target
+        camera.lookAt(targetX, 0, targetZ);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateCamera);
+        }
+      };
+      
+      animateCamera();
+    }
+
+    _CalculatePlayerDamage() {
+      // Base damage increases with level
+      const baseDamage = 20;
+      const levelBonus = (this._playerLevel - 1) * 5;
+      return baseDamage + levelBonus;
+    }
+
+    _CalculateMonsterDamage() {
+      // Monster damage scales with player level
+      const baseDamage = 15;
+      const levelScaling = Math.floor((this._playerLevel - 1) * 3);
+      return baseDamage + levelScaling;
+    }
+
+    _CalculateXPReward() {
+      // XP reward based on monster level/difficulty
+      const baseXP = 30;
+      const monsterLevel = this._GetMonsterLevel();
+      const levelBonus = (monsterLevel - 1) * 10;
+      return baseXP + levelBonus;
+    }
+
+    _GetMonsterLevel() {
+      // Use the current monster's level if available, otherwise calculate based on player level
+      if (this._currentMonster && this._currentMonster._level) {
+        return this._currentMonster._level;
+      }
+      
+      // Fallback: Monster level is based on player level with some variation
+      const minLevel = Math.max(1, this._playerLevel - 1);
+      const maxLevel = this._playerLevel + 1;
+      return Math.floor(Math.random() * (maxLevel - minLevel + 1)) + minLevel;
     }
 
     _AwardXP(amount) {
@@ -717,6 +998,11 @@ export const combat_system = (() => {
             50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
             100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
           }
+          @keyframes resetShake {
+            0%, 100% { transform: translate(-50%, -50%) translateX(0); }
+            25% { transform: translate(-50%, -50%) translateX(-10px); }
+            75% { transform: translate(-50%, -50%) translateX(10px); }
+          }
         `;
         document.head.appendChild(style);
       }
@@ -734,6 +1020,46 @@ export const combat_system = (() => {
       }, 3000);
     }
 
+    _ShowResetNotification() {
+      // Create reset notification element
+      const notification = document.createElement('div');
+      notification.className = 'reset-notification';
+      notification.innerHTML = `
+        <div class="reset-content">
+          <h2>💀 DÉFAITE!</h2>
+          <p>Retour au niveau 1</p>
+          <p>Progression réinitialisée</p>
+        </div>
+      `;
+      
+      // Add styles
+      notification.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, #ff4444, #cc0000);
+        color: white;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(255, 68, 68, 0.5);
+        z-index: 10000;
+        text-align: center;
+        font-family: Arial, sans-serif;
+        border: 3px solid #990000;
+        animation: resetShake 0.8s ease-out;
+      `;
+      
+      document.body.appendChild(notification);
+      
+      // Remove after 4 seconds
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 4000);
+    }
+
     _TriggerLevelUpEffect() {
       // Get player position for particle effect
       const player = this._params.target._parent.Get('player');
@@ -746,6 +1072,332 @@ export const combat_system = (() => {
           }
         }
       }
+    }
+
+    _StartRobotTurn() {
+      console.log('🤖 Starting robot turn');
+      
+      // Show robot turn indicator
+      this._ShowRobotTurnIndicator();
+      
+      // Add camera movement toward robot
+      this._MoveCameraToRobot();
+      
+      // Wait a moment then let robot answer
+      setTimeout(() => {
+        this._RobotAnswerQuestion();
+      }, 1500);
+    }
+
+    _ShowRobotTurnIndicator() {
+      // Add visual indicator that it's robot's turn
+      const indicator = document.createElement('div');
+      indicator.id = 'robot-turn-indicator';
+      indicator.innerHTML = '🤖 Tour du Robot...';
+      indicator.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #4a90e2, #357abd);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-weight: bold;
+        z-index: 9999;
+        box-shadow: 0 4px 15px rgba(74, 144, 226, 0.3);
+        animation: robotPulse 1s infinite alternate;
+      `;
+      
+      // Add animation if not exists
+      if (!document.querySelector('#robotTurnStyles')) {
+        const style = document.createElement('style');
+        style.id = 'robotTurnStyles';
+        style.textContent = `
+          @keyframes robotPulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(1.05); opacity: 1; }
+          }
+          @keyframes robotSelection {
+              0% { background-color: rgba(231, 76, 60, 0.2); }
+              50% { background-color: rgba(231, 76, 60, 0.6); }
+              100% { background-color: rgba(231, 76, 60, 0.2); }
+            }
+            @keyframes robotTextGlow {
+              0% { text-shadow: 0 0 10px rgba(231, 76, 60, 0.5); }
+              100% { text-shadow: 0 0 20px rgba(231, 76, 60, 0.8), 0 0 30px rgba(231, 76, 60, 0.4); }
+            }
+            @keyframes playerTextGlow {
+              0% { text-shadow: 0 0 10px rgba(74, 144, 226, 0.5); }
+              100% { text-shadow: 0 0 20px rgba(74, 144, 226, 0.8), 0 0 30px rgba(74, 144, 226, 0.4); }
+            }
+            @keyframes healthPulse {
+              0% { transform: scale(1); }
+              50% { transform: scale(1.05); }
+              100% { transform: scale(1); }
+            }
+            @keyframes damageShake {
+              0%, 100% { transform: translateX(0); }
+              25% { transform: translateX(-5px); }
+              75% { transform: translateX(5px); }
+            }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      document.body.appendChild(indicator);
+      
+      // Remove indicator after robot turn
+      setTimeout(() => {
+        if (indicator.parentNode) {
+          indicator.parentNode.removeChild(indicator);
+        }
+      }, 4000);
+    }
+
+    _RobotAnswerQuestion() {
+      if (this._isAnimating) {
+        console.log('🚫 Robot cannot answer - animation in progress');
+        return;
+      }
+      
+      console.log('🤖 Robot is thinking...');
+      this._isAnimating = true;
+      
+      // Load a new quiz for the robot (different from player's question)
+      this._LoadRobotQuiz();
+      
+      // Robot AI logic - for now, random with slight bias toward correct answer
+      const robotAnswer = this._CalculateRobotAnswer();
+      
+      // Show robot selection animation
+      this._AnimateRobotSelection(robotAnswer);
+    }
+
+    _CalculateRobotAnswer() {
+      // Simple AI: 70% chance to get it right, 30% chance to be wrong
+      const correctAnswer = this._robotQuiz.correct;
+      const shouldBeCorrect = Math.random() < 0.7;
+      
+      if (shouldBeCorrect) {
+        return correctAnswer;
+      } else {
+        // Pick a random wrong answer
+        const wrongAnswers = [];
+        for (let i = 0; i < this._robotQuiz.options.length; i++) {
+          if (i !== correctAnswer) {
+            wrongAnswers.push(i);
+          }
+        }
+        return wrongAnswers[Math.floor(Math.random() * wrongAnswers.length)];
+      }
+    }
+
+    _LoadRobotQuiz() {
+      // Always load a completely new quiz for the robot (different from current player quiz AND previous robot quiz)
+      let robotQuizIndex;
+      do {
+        robotQuizIndex = Math.floor(Math.random() * this._quizDatabase.length);
+      } while ((this._currentQuiz && this._quizDatabase[robotQuizIndex] === this._currentQuiz) || 
+               (this._robotQuiz && this._quizDatabase[robotQuizIndex] === this._robotQuiz));
+      
+      this._robotQuiz = this._quizDatabase[robotQuizIndex];
+      
+      console.log(`🤖 Loaded new robot quiz: ${this._robotQuiz.question}`);
+      
+      // Update UI to show robot's question with different styling
+      this._ShowRobotQuizUI();
+    }
+
+    _ShowRobotQuizUI() {
+      const quizContainer = document.getElementById('quiz-container');
+      if (!quizContainer) return;
+      
+      // Add entrance animation
+      quizContainer.style.transform = 'scale(0.9)';
+      quizContainer.style.transition = 'all 0.5s ease-out';
+      
+      // Change the quiz container styling for robot turn
+      quizContainer.style.background = 'linear-gradient(135deg, #2c3e50, #34495e)';
+      quizContainer.style.border = '3px solid #e74c3c';
+      quizContainer.style.boxShadow = '0 0 30px rgba(231, 76, 60, 0.8), inset 0 0 20px rgba(231, 76, 60, 0.2)';
+      
+      // Update question text with animation
+      const questionElement = document.getElementById('quiz-question');
+      if (questionElement) {
+        questionElement.innerHTML = `🤖 Question du Robot: ${this._robotQuiz.question}`;
+        questionElement.style.color = '#e74c3c';
+        questionElement.style.fontWeight = 'bold';
+        questionElement.style.textShadow = '0 0 10px rgba(231, 76, 60, 0.5)';
+        questionElement.style.animation = 'robotTextGlow 2s ease-in-out infinite alternate';
+      }
+      
+      // Update options with robot styling and animations
+      const options = document.querySelectorAll('.quiz-option');
+      options.forEach((option, index) => {
+        option.textContent = this._robotQuiz.options[index];
+        option.style.background = 'linear-gradient(135deg, #34495e, #2c3e50)';
+        option.style.border = '2px solid #e74c3c';
+        option.style.color = '#ecf0f1';
+        option.style.transition = 'all 0.3s ease';
+        option.style.transform = 'translateX(-20px)';
+        option.disabled = true; // Player can't click during robot turn
+        
+        // Staggered entrance animation
+        setTimeout(() => {
+          option.style.transform = 'translateX(0)';
+        }, index * 100);
+      });
+      
+      // Scale back to normal
+      setTimeout(() => {
+        quizContainer.style.transform = 'scale(1)';
+      }, 100);
+    }
+
+    _AnimateRobotSelection(selectedIndex) {
+      const options = document.querySelectorAll('.quiz-option');
+      
+      // Show robot "thinking" by highlighting options one by one
+      let currentOption = 0;
+      const thinkingInterval = setInterval(() => {
+        // Remove previous highlight
+        options.forEach(option => {
+          option.style.animation = '';
+          option.style.backgroundColor = '';
+        });
+        
+        // Highlight current option with robot colors
+        if (options[currentOption]) {
+          options[currentOption].style.animation = 'robotSelection 0.5s ease-in-out';
+          options[currentOption].style.backgroundColor = 'rgba(231, 76, 60, 0.3)';
+        }
+        
+        currentOption = (currentOption + 1) % options.length;
+      }, 300);
+      
+      // After thinking animation, make selection
+      setTimeout(() => {
+        clearInterval(thinkingInterval);
+        
+        // Remove all highlights
+        options.forEach(option => {
+          option.style.animation = '';
+          option.style.backgroundColor = '';
+        });
+        
+        // Make final selection
+        this._ProcessRobotAnswer(selectedIndex);
+      }, 2000);
+    }
+
+    _ProcessRobotAnswer(selectedIndex) {
+      const options = document.querySelectorAll('.quiz-option');
+      const correct = this._robotQuiz.correct;
+      
+      // Calculate level-based damage
+      const robotDamage = this._CalculateRobotDamage();
+      const playerDamage = this._CalculatePlayerDamage();
+      
+      // Disable all options
+      options.forEach(option => option.disabled = true);
+      
+      // Animate robot selection with robot colors
+      options[selectedIndex].style.transform = 'scale(1.1)';
+      options[selectedIndex].style.border = '3px solid #e74c3c';
+      options[selectedIndex].style.boxShadow = '0 0 15px rgba(231, 76, 60, 0.7)';
+      
+      setTimeout(() => {
+        // Show correct/incorrect feedback for robot
+        if (selectedIndex === correct) {
+          this._PlayUISound('correct');
+          options[selectedIndex].classList.add('correct');
+          options[selectedIndex].style.background = 'linear-gradient(135deg, #27ae60, #2ecc71)';
+          this._AddCombatLogAnimated(`🤖 Robot correct! Robot deals ${robotDamage} damage to you!`, 'robot-success');
+          this._DamagePlayer(robotDamage);
+          this._ShakeScreen(true); // Damage shake for player
+        } else {
+          this._PlayUISound('incorrect');
+          options[selectedIndex].classList.add('incorrect');
+          options[selectedIndex].style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
+          options[correct].classList.add('correct');
+          options[correct].style.background = 'linear-gradient(135deg, #27ae60, #2ecc71)';
+          this._AddCombatLogAnimated(`🤖 Robot wrong! You deal ${playerDamage} damage to robot!`, 'robot-error');
+          this._DamageMonster(playerDamage);
+          this._ShakeScreen(false); // Victory shake
+        }
+        
+        // Check for combat end after robot turn
+        setTimeout(() => {
+          if (this._currentMonster && this._currentMonster._health <= 0) {
+            this._KillMonster();
+            console.log('Monster defeated by robot mistake, ending combat');
+            this._EndCombat({
+              playerWon: true
+            });
+          } else if (this._playerHealth <= 0) {
+            console.log('Player defeated by robot, ending combat');
+            this._EndCombat({
+              playerWon: false
+            });
+          } else {
+            // Continue combat - return to player turn
+             this._RestorePlayerQuizUI();
+             this._MoveCameraToPlayer();
+             this._playerTurn = true;
+             this._isAnimating = false;
+             this._ShowActionMenu();
+             this._LoadRandomQuiz(); // Load completely new quiz for next turn
+          }
+        }, 2000);
+      }, 500);
+    }
+
+    _RestorePlayerQuizUI() {
+      // Restore original quiz UI styling for player turn with animation
+      const quizContainer = document.getElementById('quiz-container');
+      if (quizContainer) {
+        quizContainer.style.transform = 'scale(0.95)';
+        quizContainer.style.transition = 'all 0.5s ease-out';
+        quizContainer.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        quizContainer.style.border = '2px solid #4a90e2';
+        quizContainer.style.boxShadow = '0 8px 32px rgba(0,0,0,0.3), 0 0 20px rgba(74, 144, 226, 0.3)';
+        
+        setTimeout(() => {
+          quizContainer.style.transform = 'scale(1)';
+        }, 100);
+      }
+      
+      const questionElement = document.getElementById('quiz-question');
+      if (questionElement) {
+        questionElement.style.color = '#ffffff';
+        questionElement.style.fontWeight = 'normal';
+        questionElement.style.textShadow = '0 0 10px rgba(74, 144, 226, 0.5)';
+        questionElement.style.animation = 'playerTextGlow 2s ease-in-out infinite alternate';
+      }
+      
+      const options = document.querySelectorAll('.quiz-option');
+      options.forEach((option, index) => {
+        option.style.background = 'rgba(255, 255, 255, 0.1)';
+        option.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+        option.style.color = '#ffffff';
+        option.style.transform = 'translateX(20px)';
+        option.style.boxShadow = '';
+        option.style.transition = 'all 0.3s ease';
+        option.disabled = false;
+        option.classList.remove('correct', 'incorrect');
+        
+        // Staggered entrance animation
+        setTimeout(() => {
+          option.style.transform = 'translateX(0)';
+        }, index * 100);
+      });
+    }
+
+    _CalculateRobotDamage() {
+      // Robot damage scales with player level but is slightly weaker
+      const baseDamage = 18;
+      const levelScaling = Math.floor((this._playerLevel - 1) * 4);
+      return baseDamage + levelScaling;
     }
 
     _TriggerMonsterAttack() {
@@ -784,14 +1436,21 @@ export const combat_system = (() => {
         // Reset player position to starting point
         player.SetPosition(new THREE.Vector3(0, 0, 0));
         
-        // Reset player health
+        // Reset player level and stats to starting values
+        this._playerLevel = 1;
+        this._playerXP = 0;
+        this._playerXPToNextLevel = 100;
+        this._playerMaxHealth = 100; // Reset to base health
         this._playerHealth = this._playerMaxHealth;
         
         // Update health bar and XP display
         this._UpdateHealthBars();
         this._UpdateXPDisplay();
         
-        console.log('✅ Player respawned successfully');
+        // Show reset notification
+        this._ShowResetNotification();
+        
+        console.log('✅ Player respawned at level 1 with reset stats');
       }
     }
 
