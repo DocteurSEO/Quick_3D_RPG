@@ -50,7 +50,8 @@ export const combat_system = (() => {
       this._playerMaxHealth = 100;
       this._playerXP = 0;
       
-      this._InitUI();
+      // UI will be initialized when combat starts
+      this._keydownHandler = null;
     }
 
     InitComponent() {
@@ -67,8 +68,14 @@ export const combat_system = (() => {
       this._currentMenu = 'action'; // 'action' or 'quiz'
       this._isAnimating = false;
       
+      // Remove existing event listeners to prevent duplicates
+      if (this._keydownHandler) {
+        document.removeEventListener('keydown', this._keydownHandler);
+      }
+      
       // Keyboard handlers for retro navigation
-      document.addEventListener('keydown', (e) => this._HandleKeyInput(e));
+      this._keydownHandler = (e) => this._HandleKeyInput(e);
+      document.addEventListener('keydown', this._keydownHandler);
       
       // Quiz option handlers
       const quizOptions = document.querySelectorAll('.quiz-option');
@@ -96,6 +103,14 @@ export const combat_system = (() => {
       
       // Initialize selection
       this._UpdateMenuSelection();
+    }
+    
+    _CleanupUI() {
+      // Remove keyboard event listener
+      if (this._keydownHandler) {
+        document.removeEventListener('keydown', this._keydownHandler);
+        this._keydownHandler = null;
+      }
     }
     
     _HandleKeyInput(event) {
@@ -238,16 +253,23 @@ export const combat_system = (() => {
 
     _StartCombat(message) {
       if (this._isInCombat) {
+        console.log('⚠️ Combat already in progress, ignoring new combat request');
         return;
       }
       
       console.log('⚔️ STARTING COMBAT with:', message.monster.Name || 'Unknown Monster');
+      console.log('🏥 Initial monster health:', message.monster._health, '/', message.monster._maxHealth);
+      
       this._isInCombat = true;
       this._currentMonster = message.monster;
       this._playerTurn = true;
+      this._isAnimating = false;
       
       // Stop player movement during combat
       this._params.target.GetComponent('BasicCharacterController')._velocity.set(0, 0, 0);
+      
+      // Initialize UI for this combat session
+      this._InitUI();
       
       // Store original camera position
       this._originalCameraPosition.copy(this._params.camera.position);
@@ -266,6 +288,13 @@ export const combat_system = (() => {
       this._combatCameraLookAt.copy(midPoint);
       this._combatCameraLookAt.y += 2;
       
+      // Disable player movement during combat
+      const controller = this._params.target.GetComponent('BasicCharacterController');
+      if (controller) {
+        controller._enabled = false;
+        console.log('🚫 Player movement disabled for combat');
+      }
+      
       // Start camera transition
       this._isTransitioning = true;
       this._cameraTransitionProgress = 0;
@@ -277,10 +306,14 @@ export const combat_system = (() => {
       document.getElementById('monster-name').textContent = this._currentMonster.Name || 'Monster';
       this._UpdateHealthBars();
       
-      // Load first quiz
-      this._LoadRandomQuiz();
+      // Ensure monster health is properly set
+      console.log('🏥 Monster health:', this._currentMonster._health, '/', this._currentMonster._maxHealth);
       
-      this._AddCombatLog('Combat started!');
+      // Load first quiz after a short delay to ensure UI is ready
+      setTimeout(() => {
+        this._LoadRandomQuiz();
+        this._AddCombatLog('Combat started!');
+      }, 100);
     }
 
     _EndCombat(message) {
@@ -301,6 +334,9 @@ export const combat_system = (() => {
         this._PlayUISound('incorrect');
         this._AddCombatLogAnimated('💀 Defeat...', 'error');
         this._ShowDefeatEffect();
+        
+        // Respawn player at starting position
+        this._RespawnPlayer();
       }
       
       // Delay before hiding UI to show final message
@@ -311,6 +347,13 @@ export const combat_system = (() => {
         this._isInCombat = false;
         this._currentMonster = null;
         this._isAnimating = false;
+        
+        // Clean up event listeners
+        this._CleanupUI();
+        
+        // Hide quiz and action menu sections
+        document.getElementById('quiz-section').classList.add('hidden');
+        document.getElementById('action-menu').classList.remove('hidden');
         
         // Transition camera back
         this._isTransitioning = true;
@@ -337,15 +380,22 @@ export const combat_system = (() => {
     
     _HideCombatUIAnimated() {
       const combatUI = document.getElementById('combat-ui');
+      
+      // Force immediate hiding first
+      combatUI.classList.add('hidden');
+      
+      // Then apply animation
       combatUI.style.transition = 'all 0.5s ease';
       combatUI.style.opacity = '0';
       combatUI.style.transform = 'scale(0.9)';
+      combatUI.style.pointerEvents = 'none';
       
       setTimeout(() => {
-        combatUI.classList.add('hidden');
         combatUI.style.opacity = '';
         combatUI.style.transform = '';
         combatUI.style.transition = '';
+        combatUI.style.pointerEvents = '';
+        console.log('🎭 Combat UI fully hidden');
       }, 500);
     }
     
@@ -462,8 +512,17 @@ export const combat_system = (() => {
     }
 
     _HandleQuizAnswer(selectedIndex) {
-      if (!this._currentQuiz || !this._playerTurn || this._isAnimating) return;
+      if (!this._currentQuiz || !this._playerTurn || this._isAnimating || !this._isInCombat) {
+        console.log('🚫 Quiz answer ignored - not ready:', {
+          hasQuiz: !!this._currentQuiz,
+          playerTurn: this._playerTurn,
+          isAnimating: this._isAnimating,
+          inCombat: this._isInCombat
+        });
+        return;
+      }
       
+      console.log('📝 Processing quiz answer:', selectedIndex);
       this._isAnimating = true;
       const options = document.querySelectorAll('.quiz-option');
       const correct = this._currentQuiz.correct;
@@ -585,22 +644,55 @@ export const combat_system = (() => {
       }
     }
     
+    _RespawnPlayer() {
+      // Get player entity
+      const player = this._params.target._parent.Get('player');
+      if (player) {
+        console.log('🔄 Respawning player at starting position');
+        
+        // Reset player position to starting point
+        player.SetPosition(new THREE.Vector3(0, 0, 0));
+        
+        // Reset player health
+        this._playerHealth = this._playerMaxHealth;
+        
+        // Update health bar
+        this._UpdateHealthBars();
+        
+        console.log('✅ Player respawned successfully');
+      }
+    }
+
     _KillMonster() {
       if (this._currentMonster && this._currentMonster._target) {
-        // Remove monster from scene
-        this._params.scene.remove(this._currentMonster._target);
+        // Reset monster health for potential respawn
+        this._currentMonster._health = this._currentMonster._maxHealth;
         
-        // Mark monster as dead
-        this._currentMonster._health = 0;
+        // Move monster far away and deactivate it temporarily
+        this._currentMonster._target.position.set(1000, 0, 1000);
         
-        // Remove from entity manager
+        // Find the entity and deactivate it
         const entityManager = this._params.target._parent;
         const entities = entityManager._entities;
         for (let entity of entities) {
           const npcController = entity.GetComponent('NPCController');
           if (npcController === this._currentMonster) {
-            console.log('🗑️ Removing defeated enemy:', entity._name);
-            entityManager.Remove(entity);
+            console.log('🗑️ Deactivating defeated enemy:', entity._name);
+            entity.SetActive(false);
+            
+            // Respawn after 10 seconds
+            setTimeout(() => {
+              if (entity && npcController) {
+                console.log('🔄 Respawning enemy:', entity._name);
+                npcController._health = npcController._maxHealth;
+                entity.SetPosition(new THREE.Vector3(
+                  20 + (Math.random() - 0.5) * 40,
+                  0,
+                  20 + (Math.random() - 0.5) * 40
+                ));
+                entity.SetActive(true);
+              }
+            }, 10000);
             break;
           }
         }
@@ -705,19 +797,18 @@ export const combat_system = (() => {
         const currentLookAt = new THREE.Vector3().lerpVectors(this._originalCameraLookAt, this._combatCameraLookAt, easedT);
         this._params.camera.lookAt(currentLookAt);
       } else {
-        // Transition back to original camera - disable third person camera during transition
+        // Transition back to original camera
         this._params.camera.position.lerpVectors(this._combatCameraPosition, this._originalCameraPosition, easedT);
         
         const currentLookAt = new THREE.Vector3().lerpVectors(this._combatCameraLookAt, this._originalCameraLookAt, easedT);
         this._params.camera.lookAt(currentLookAt);
         
-        // Re-enable third person camera when transition is done
-        if (!this._isTransitioning) {
-          if (this._params.target && this._params.target._parent) {
-            const camera = this._params.target._parent.Get('player-camera');
-            if (camera) {
-              camera.GetComponent('ThirdPersonCamera')._enabled = true;
-            }
+        // Re-enable third person camera when transition is complete
+        if (this._cameraTransitionProgress >= 1) {
+          const camera = this._params.target._parent.Get('player-camera');
+          if (camera) {
+            camera.GetComponent('ThirdPersonCamera')._enabled = true;
+            console.log('📷 Third person camera re-enabled');
           }
         }
       }

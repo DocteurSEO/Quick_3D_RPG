@@ -30,18 +30,27 @@ export const entity_manager = (() => {
 
       this._entitiesMap[n] = e;
       this._entities.push(e);
+      e._active = true; // Initialize as active
 
       e.SetParent(this);
       e.SetName(n);
     }
 
     SetActive(e, b) {
-      const i = this._entities.indexOf(e);
-      if (i < 0) {
-        return;
+      e._active = b;
+      
+      if (b) {
+        // Reactivate entity - add back to active list if not already there
+        if (!this._entities.includes(e)) {
+          this._entities.push(e);
+        }
+      } else {
+        // Deactivate entity - remove from active list but keep in map
+        const i = this._entities.indexOf(e);
+        if (i >= 0) {
+          this._entities.splice(i, 1);
+        }
       }
-
-      this._entities.splice(i, 1);
     }
 
     Remove(entity) {

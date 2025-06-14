@@ -53,6 +53,7 @@ export const player_entity = (() => {
       this._acceleration = new THREE.Vector3(1, 0.125, 50.0);
       this._velocity = new THREE.Vector3(0, 0, 0);
       this._position = new THREE.Vector3();
+      this._enabled = true; // Add enabled property
   
       this._animations = {};
       this._stateMachine = new CharacterFSM(
@@ -149,15 +150,18 @@ export const player_entity = (() => {
             // Check if not already in combat
             const combatSystem = this._parent._parent.Get('combat-system');
             if (combatSystem && !combatSystem.GetComponent('CombatSystem').IsInCombat) {
-              console.log('🔥 COMBAT TRIGGERED WITH IA001! Distance:', d.toFixed(2));
-              
-              // Trigger combat directly
-              const combatComponent = combatSystem.GetComponent('CombatSystem');
-              if (combatComponent) {
-                combatComponent._StartCombat({
-                  topic: 'combat.start',
-                  monster: npcController
-                });
+              // Check if monster is alive and active
+              if (npcController._health > 0 && e._active) {
+                console.log('🔥 COMBAT TRIGGERED WITH IA001! Distance:', d.toFixed(2));
+                
+                // Trigger combat directly
+                const combatComponent = combatSystem.GetComponent('CombatSystem');
+                if (combatComponent) {
+                  combatComponent._StartCombat({
+                    topic: 'combat.start',
+                    monster: npcController
+                  });
+                }
               }
             }
           }
@@ -176,6 +180,11 @@ export const player_entity = (() => {
 
     Update(timeInSeconds) {
       if (!this._stateMachine._currentState) {
+        return;
+      }
+
+      // Check if controller is disabled
+      if (!this._enabled) {
         return;
       }
 
