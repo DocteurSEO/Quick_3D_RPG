@@ -39,7 +39,7 @@ const game_config = (() => {
       types: {
         'IA001': {
           healthMultiplier: 0.8,
-          damageMultiplier: 0.6,
+          damageMultiplier: 0.9,
           xpReward: 25
         },
         'robot': {
