@@ -138,28 +138,99 @@ export const combat_system = (() => {
       this._keydownHandler = (e) => this._HandleKeyInput(e);
       document.addEventListener('keydown', this._keydownHandler);
       
-      // Quiz option handlers
+      // Quiz option handlers - Support mobile et desktop
       const quizOptions = document.querySelectorAll('.quiz-option');
       quizOptions.forEach((option, index) => {
-        option.addEventListener('click', () => {
+        // Handler pour réponse au quiz
+        const handleQuizSelection = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
           if (this._isAnimating) return;
           this._PlayUISound('select');
           this._selectedQuizIndex = index;
           this._UpdateQuizSelection();
           this._HandleQuizAnswer(index);
-        });
+        };
+        
+        // Handler pour feedback tactile immédiat
+        const handleTouchStart = (e) => {
+          e.preventDefault();
+          if (this._isAnimating) return;
+          
+          // Feedback visuel immédiat
+          option.style.transform = 'scale(0.95)';
+          option.style.background = 'rgba(60, 60, 60, 0.9)';
+        };
+        
+        const handleTouchEnd = (e) => {
+          e.preventDefault();
+          // Restaurer l'apparence
+          option.style.transform = '';
+          option.style.background = '';
+        };
+        
+        // Events tactiles pour mobile
+        option.addEventListener('touchstart', handleTouchStart, { passive: false });
+        option.addEventListener('touchend', handleTouchEnd, { passive: false });
+        option.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        
+        // Event click pour desktop et mobile (backup)
+        option.addEventListener('click', handleQuizSelection);
+        
+        // Event tactile pour sélection (priorité sur click sur mobile)
+        option.addEventListener('touchend', (e) => {
+          handleTouchEnd(e);
+          // Délai court pour éviter le double événement click
+          setTimeout(() => handleQuizSelection(e), 10);
+        }, { passive: false });
       });
 
-      // Menu option handlers
+      // Menu option handlers - Support mobile et desktop
       const menuOptions = document.querySelectorAll('.menu-option');
       menuOptions.forEach((option, index) => {
-        option.addEventListener('click', () => {
+        // Handler pour sélection menu
+        const handleMenuSelection = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
           if (this._isAnimating) return;
           this._PlayUISound('select');
           this._selectedMenuIndex = index;
           this._UpdateMenuSelection();
           this._HandleMenuAction(option.dataset.action);
-        });
+        };
+        
+        // Handler pour feedback tactile immédiat
+        const handleTouchStart = (e) => {
+          e.preventDefault();
+          if (this._isAnimating) return;
+          
+          // Feedback visuel immédiat
+          option.style.transform = 'scale(0.95) translateX(3px)';
+          option.style.background = 'rgba(60, 60, 60, 0.9)';
+        };
+        
+        const handleTouchEnd = (e) => {
+          e.preventDefault();
+          // Restaurer l'apparence
+          option.style.transform = '';
+          option.style.background = '';
+        };
+        
+        // Events tactiles pour mobile
+        option.addEventListener('touchstart', handleTouchStart, { passive: false });
+        option.addEventListener('touchend', handleTouchEnd, { passive: false });
+        option.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        
+        // Event click pour desktop
+        option.addEventListener('click', handleMenuSelection);
+        
+        // Event tactile pour sélection
+        option.addEventListener('touchend', (e) => {
+          handleTouchEnd(e);
+          setTimeout(() => handleMenuSelection(e), 10);
+        }, { passive: false });
       });
       
       // Initialize selection
