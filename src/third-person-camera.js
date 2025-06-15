@@ -22,6 +22,12 @@ export const third_person_camera = (() => {
       this._mouseY = 0;
       this._isMouseDown = false;
       
+      // Optimisations de performance
+      this._updateCounter = 0;
+      this._lastPosition = new THREE.Vector3();
+      this._lastLookat = new THREE.Vector3();
+      this._positionThreshold = 0.01; // Seuil de changement minimum
+      
       this._InitMouseControls();
     }
     
@@ -81,18 +87,26 @@ export const third_person_camera = (() => {
     Update(timeElapsed) {
       if (this._enabled === false) return;
       
+      this._updateCounter++;
+      
+      // Mise à jour chaque frame pour la fluidité
+      
       const idealOffset = this._CalculateIdealOffset();
       const idealLookat = this._CalculateIdealLookat();
 
       // const t = 0.05;
       // const t = 4.0 * timeElapsed;
-      const t = 1.0 - Math.pow(0.01, timeElapsed);
-
+      // Utilisation du facteur d'interpolation de la configuration pour plus de réactivité
+      const t = 0.15; // Facteur d'interpolation plus rapide pour haute performance
       this._currentPosition.lerp(idealOffset, t);
       this._currentLookat.lerp(idealLookat, t);
 
+      // Mise à jour de la caméra chaque frame pour la fluidité
       this._camera.position.copy(this._currentPosition);
       this._camera.lookAt(this._currentLookat);
+      
+      this._lastPosition.copy(this._currentPosition);
+      this._lastLookat.copy(this._currentLookat);
     }
   }
 

@@ -54,6 +54,10 @@ export const player_entity = (() => {
       this._velocity = new THREE.Vector3(0, 0, 0);
       this._position = new THREE.Vector3();
       this._enabled = true; // Add enabled property
+      
+      // Optimisations de performance
+      this._updateCounter = 0;
+      this._lastCombatCheck = 0;
   
       this._animations = {};
       this._stateMachine = new CharacterFSM(
@@ -188,17 +192,29 @@ export const player_entity = (() => {
         return;
       }
 
-      // Check if in combat mode - disable movement
-      const combatSystem = this._parent._parent.Get('combat-system');
-      if (combatSystem && combatSystem.GetComponent('CombatSystem').IsInCombat) {
-        // Robot floating animation only during combat
+      // Optimisation: vérifier le combat moins fréquemment
+      let isInCombat = false;
+      if (this._updateCounter - this._lastCombatCheck > 5) { // Vérifier tous les 5 frames
+        const combatSystem = this._parent._parent.Get('combat-system');
+        isInCombat = combatSystem && combatSystem.GetComponent('CombatSystem').IsInCombat;
+        this._lastCombatCheck = this._updateCounter;
+        this._isInCombat = isInCombat;
+      } else {
+        isInCombat = this._isInCombat;
+      }
+      
+      if (isInCombat) {
+        // Robot floating animation during combat (chaque frame pour la fluidité)
         if (this._target) {
           const time = Date.now() * 0.002;
           this._target.position.y = 2.0 + Math.sin(time) * 0.5;
           // Removed automatic rotation during combat
         }
+        this._updateCounter++;
         return;
       }
+      
+      this._updateCounter++;
 
       const input = this.GetComponent('BasicCharacterControllerInput');
       this._stateMachine.Update(timeInSeconds, input);
@@ -285,7 +301,9 @@ export const player_entity = (() => {
       pos.add(forward);
       pos.add(sideways);
 
+      // Détection des collisions chaque frame pour éviter les saccades
       const collisions = this._FindIntersections(pos);
+      
       if (collisions.length > 0) {
         return;
       }
@@ -295,6 +313,12 @@ export const player_entity = (() => {
   
       this._parent.SetPosition(this._position);
       this._parent.SetQuaternion(this._target.quaternion);
+      
+      // Broadcaster la position pour maintenir la fluidité
+      this.Broadcast({
+        topic: 'update.position',
+        value: this._position,
+      });
     }
   };
   

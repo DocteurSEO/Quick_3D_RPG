@@ -71,6 +71,11 @@ export const particle_system = (() => {
   
   class ParticleSystem {
     constructor(params) {
+      // Optimisations de performance
+      this._maxParticles = 2000; // Augmenté pour plus d'effets visuels
+      this._sortFrequency = 1; // Tri chaque frame pour la qualité maximale
+      this._frameCounter = 0;
+      
       const uniforms = {
           diffuseTexture: {
               value: new THREE.TextureLoader().load(params.texture)
@@ -121,6 +126,13 @@ export const particle_system = (() => {
     }
   
     AddParticles(origin, n) {
+      // Limiter le nombre total de particules
+      if (this._particles.length + n > this.MAX_PARTICLES) {
+        n = Math.max(0, this.MAX_PARTICLES - this._particles.length);
+      }
+      
+      if (n <= 0) return;
+      
       for (let i = 0; i < n; i++) {
         const life = (Math.random() * 0.75 + 0.25) * 3.0;
         const p = new THREE.Vector3(
@@ -171,46 +183,53 @@ export const particle_system = (() => {
     }
   
     _UpdateParticles(timeElapsed) {
-      for (let p of this._particles) {
+      // Optimisation: utiliser un tableau pour les particules à supprimer
+      const particlesToRemove = [];
+      
+      for (let i = 0; i < this._particles.length; i++) {
+        const p = this._particles[i];
         p.life -= timeElapsed;
-      }
-  
-      this._particles = this._particles.filter(p => {
-        return p.life > 0.0;
-      });
-  
-      for (let p of this._particles) {
+        
+        if (p.life <= 0) {
+          particlesToRemove.push(i);
+          continue;
+        }
+        
+        // Optimiser les calculs
         const t = 1.0 - p.life / p.maxLife;
-  
         p.rotation += timeElapsed * 0.5;
         p.alpha = this._alphaSpline.Get(t);
         p.currentSize = p.size * this._sizeSpline.Get(t);
         p.colour.copy(this._colourSpline.Get(t));
-  
-        p.position.add(p.velocity.clone().multiplyScalar(timeElapsed));
-  
-        const drag = p.velocity.clone();
-        drag.multiplyScalar(timeElapsed * 2.0);
-        drag.x = Math.sign(p.velocity.x) * Math.min(Math.abs(drag.x), Math.abs(p.velocity.x));
-        drag.y = Math.sign(p.velocity.y) * Math.min(Math.abs(drag.y), Math.abs(p.velocity.y));
-        drag.z = Math.sign(p.velocity.z) * Math.min(Math.abs(drag.z), Math.abs(p.velocity.z));
-        p.velocity.sub(drag);
+        
+        // Réduire les clones d'objets - modification directe
+        p.position.x += p.velocity.x * timeElapsed;
+        p.position.y += p.velocity.y * timeElapsed;
+        p.position.z += p.velocity.z * timeElapsed;
+        
+        // Optimiser le calcul de la traînée
+        const dragFactor = timeElapsed * 2.0;
+        p.velocity.x *= (1 - Math.min(dragFactor, 1));
+        p.velocity.y *= (1 - Math.min(dragFactor, 1));
+        p.velocity.z *= (1 - Math.min(dragFactor, 1));
       }
-  
-      this._particles.sort((a, b) => {
-        const d1 = this._camera.position.distanceTo(a.position);
-        const d2 = this._camera.position.distanceTo(b.position);
-  
-        if (d1 > d2) {
-          return -1;
-        }
-  
-        if (d1 < d2) {
-          return 1;
-        }
-  
-        return 0;
-      });
+      
+      // Supprimer les particules mortes (en ordre inverse)
+      for (let i = particlesToRemove.length - 1; i >= 0; i--) {
+        this._particles.splice(particlesToRemove[i], 1);
+      }
+      
+      // Calcul de distance précis pour haute performance
+      for (let particle of this._particles) {
+        const distance = particle.position.distanceTo(this._camera.position);
+        particle.distanceToCamera = distance;
+      }
+      
+      if (this._frameCounter++ % this._sortFrequency === 0) {
+        this._particles.sort((a, b) => {
+          return b.distanceToCamera - a.distanceToCamera;
+        });
+      }
     }
   
     Step(timeElapsed) {

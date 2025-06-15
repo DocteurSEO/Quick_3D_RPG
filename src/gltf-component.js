@@ -107,6 +107,7 @@ export const gltf_component = (() => {
   class AnimatedModelComponent extends entity.Component {
     constructor(params) {
       super();
+      this._updateCounter = 0; // Optimisation de performance
       this._Init(params);
     }
   
@@ -222,6 +223,7 @@ export const gltf_component = (() => {
 
     Update(timeInSeconds) {
       if (this._mixer) {
+        // Mise à jour des animations chaque frame pour la fluidité
         this._mixer.update(timeInSeconds);
       }
     }

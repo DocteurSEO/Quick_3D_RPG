@@ -30,6 +30,8 @@ import {gamepad_controller} from './gamepad-controller.js';
 import {quiz_database_replacer} from './quiz-database-replacer.js';
 import {spatial_audio_demo} from './spatial-audio-demo.js';
 import {ia001_audio_system} from './ia001-audio-system.js';
+import {PerformanceConfig, isLowEndDevice, applyLowEndSettings} from './performance-config.js';
+import {FPSMonitor} from './fps-monitor.js';
 
 
 const _VS = `
@@ -64,14 +66,30 @@ class HackNSlashDemo {
   }
 
   _Initialize() {
+    // Initialiser le moniteur FPS
+    this._fpsMonitor = new FPSMonitor();
+    
+    // Détecter et appliquer les paramètres pour appareils faibles
+    if (isLowEndDevice()) {
+      applyLowEndSettings();
+      console.log('Appareil faible détecté - paramètres optimisés appliqués');
+    }
+    // Optimisations de performance
+    this._needsRender = true;
+    this._isLowEndDevice = this._DetectLowEndDevice();
+    
+    // Configuration du rendu haute performance
     this._threejs = new THREE.WebGLRenderer({
-      antialias: true,
+      antialias: !this._isLowEndDevice, // Antialiasing activé sauf sur appareils très faibles
+      powerPreference: "high-performance"
     });
     this._threejs.outputEncoding = THREE.sRGBEncoding;
     this._threejs.gammaFactor = 2.2;
-    this._threejs.shadowMap.enabled = true;
+    this._threejs.shadowMap.enabled = !this._isLowEndDevice;
     this._threejs.shadowMap.type = THREE.PCFSoftShadowMap;
-    this._threejs.setPixelRatio(window.devicePixelRatio);
+    this._threejs.shadowMap.autoUpdate = true;
+    // Support des écrans haute résolution
+    this._threejs.setPixelRatio(Math.min(window.devicePixelRatio, this._isLowEndDevice ? 1 : 3));
     this._threejs.setSize(window.innerWidth, window.innerHeight);
     this._threejs.domElement.id = 'threejs';
 
@@ -97,8 +115,14 @@ class HackNSlashDemo {
     light.target.position.set(0, 0, 0);
     light.castShadow = true;
     light.shadow.bias = -0.001;
-    light.shadow.mapSize.width = 4096;
-    light.shadow.mapSize.height = 4096;
+    // Configuration des ombres haute qualité
+    if (!this._isLowEndDevice) {
+      light.shadow.mapSize.width = 4096; // Qualité d'ombres maximale
+      light.shadow.mapSize.height = 4096;
+    } else {
+      light.shadow.mapSize.width = 2048; // Qualité améliorée même pour low-end
+      light.shadow.mapSize.height = 2048;
+    }
     light.shadow.camera.near = 0.1;
     light.shadow.camera.far = 1000.0;
     light.shadow.camera.left = 100;
@@ -502,14 +526,35 @@ class HackNSlashDemo {
 
   _RAF() {
     requestAnimationFrame((t) => {
+      // Mettre à jour le moniteur FPS
+      this._fpsMonitor.update();
+      
       if (this._previousRAF === null) {
         this._previousRAF = t;
       }
 
+      const deltaTime = t - this._previousRAF;
+      
+      // Limiter le FPS selon la configuration
+      const targetFrameTime = 1000 / PerformanceConfig.rendering.maxFPS;
+      if (deltaTime < targetFrameTime) {
+        this._RAF();
+        return;
+      }
+
       this._RAF();
 
-      this._threejs.render(this._scene, this._camera);
-      this._Step(t - this._previousRAF);
+      // Rendu haute performance sans limitation FPS artificielle
+      const targetFPS = PerformanceConfig.rendering.maxFPS;
+      const frameTime = 1000 / targetFPS;
+      
+      // Rendu à la fréquence maximale pour les appareils puissants
+      if (deltaTime >= frameTime || targetFPS >= 120) {
+        this._threejs.render(this._scene, this._camera);
+      }
+      
+      this._frameCount = (this._frameCount || 0) + 1;
+      this._Step(deltaTime);
       this._previousRAF = t;
     });
   }
@@ -520,6 +565,28 @@ class HackNSlashDemo {
     this._UpdateSun();
 
     this._entityManager.Update(timeElapsedS);
+    
+    // Marquer qu'un nouveau rendu est nécessaire
+    this._needsRender = true;
+  }
+  
+  // Détection des appareils faibles pour ajuster les paramètres
+  _DetectLowEndDevice() {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    
+    if (gl) {
+      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+      if (debugInfo) {
+        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+        // Détecter les GPU mobiles ou faibles
+        return renderer.includes('Mali') || renderer.includes('Adreno') || 
+               renderer.includes('PowerVR') || renderer.includes('Tegra');
+      }
+    }
+    
+    // Fallback: détecter selon la mémoire disponible
+    return navigator.deviceMemory && navigator.deviceMemory < 4;
   }
 }
 
