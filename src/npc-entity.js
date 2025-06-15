@@ -6,6 +6,7 @@ import {finite_state_machine} from './finite-state-machine.js';
 import {entity} from './entity.js';
 import {player_entity} from './player-entity.js'
 import {player_state} from './player-state.js';
+import {ia001_audio_system} from './ia001-audio-system.js';
 
 
 export const npc_entity = (() => {
@@ -23,8 +24,9 @@ export const npc_entity = (() => {
         right: false,
         space: false,
         shift: false,
-      };
+      }
     }
+
   };
 
   class NPCFSM extends finite_state_machine.FiniteStateMachine {
@@ -74,6 +76,14 @@ export const npc_entity = (() => {
         this._health = 150;  // IA001 has more health
         this._maxHealth = 150;
         this.Name = 'IA001';
+        
+        // Ajouter le système audio IA001
+        this._audioSystem = new ia001_audio_system.IA001AudioSystem();
+        this._parent.AddComponent(this._audioSystem);
+        
+        // Initialiser le système audio de manière asynchrone
+        this._InitializeAudioSystem();
+        console.log('🔊 Système audio IA001 ajouté');
       } else {
         // Calculate monster stats based on player level if available
         const playerLevel = this._GetPlayerLevel();
@@ -104,6 +114,24 @@ export const npc_entity = (() => {
         console.log('Could not get player level, using default');
       }
       return 1; // Default level if combat system not found
+     }
+
+     async _InitializeAudioSystem() {
+       if (this._audioSystem && this._params.isIA001) {
+         try {
+           // Attendre un peu pour que le jeu soit complètement chargé
+           await new Promise(resolve => setTimeout(resolve, 1000));
+           
+           // Forcer l'initialisation du système audio
+           if (this._audioSystem._Init) {
+             await this._audioSystem._Init();
+           }
+           
+           console.log('✅ Système audio IA001 initialisé avec succès');
+         } catch (error) {
+           console.error('❌ Erreur lors de l\'initialisation audio IA001:', error);
+         }
+       }
      }
  
      _OnDeath(msg) {
@@ -698,11 +726,25 @@ export const npc_entity = (() => {
 
       // Check if in turn-based combat mode - disable AI
       const combatSystem = this._parent._parent.Get('combat-system');
-      if (combatSystem && combatSystem.GetComponent('CombatSystem').IsInCombat) {
+      const isInTurnBasedCombat = combatSystem && combatSystem.GetComponent('CombatSystem').IsInCombat;
+      
+      if (isInTurnBasedCombat) {
         // Only update animations during turn-based combat, skip AI
         if (this._mixer) {
           this._mixer.update(timeInSeconds);
         }
+        
+        // Mais continuer à mettre à jour l'audio IA001 même en combat
+         if (this._params.isIA001 && this._audioSystem) {
+           const currentState = this._stateMachine._currentState.Name;
+           const isMoving = currentState === 'walk';
+           // Son de combat uniquement pendant le tour du robot (état attack)
+           const isInCombat = currentState === 'attack';
+           const currentHealth = this._health || 150;
+           
+           this._audioSystem.UpdateAudioState(isMoving, isInCombat, currentHealth);
+         }
+        
         return;
       }
 
@@ -720,6 +762,16 @@ export const npc_entity = (() => {
         }
         // Ensure IA001 stays above ground
         this._target.position.y = 2.8;
+        
+        // Mettre à jour l'état audio IA001
+        if (this._audioSystem) {
+          const isMoving = currentState === 'walk';
+          // Son de combat uniquement pendant le tour du robot (état attack)
+          const isInCombat = currentState === 'attack';
+          const currentHealth = this._health || 150;
+          
+          this._audioSystem.UpdateAudioState(isMoving, isInCombat, currentHealth);
+        }
       }
 
       // Robot procedural animations (only for non-IA001 robots)

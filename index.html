@@ -19,7 +19,7 @@
       <!-- Health bars at top -->
       <div class="health-overlay">
         <div class="health-bar-container player-health">
-          <span>JOUEUR</span>
+          <span>BOBERT</span>
           <div class="health-bar">
             <div id="player-health" class="health-fill"></div>
           </div>
@@ -88,8 +88,13 @@
       <span>+50 XP</span>
     </div>
     
+    <!-- Audio Control Button -->
+    <div id="audio-control" style="position: fixed; top: 10px; right: 10px; z-index: 2000; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 10px; cursor: pointer; user-select: none;" title="Activer/Désactiver les sons de combat">
+      <span id="audio-icon" style="color: #4CAF50; font-size: 20px; font-weight: bold;">🔊</span>
+    </div>
+
     <!-- Player Level & XP Display -->
-    <div id="player-stats" style="position: fixed; top: 10px; right: 10px; z-index: 2000; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; font-family: 'Arial', sans-serif; min-width: 200px;">
+    <div id="player-stats" style="position: fixed; top: 10px; left: 10px; z-index: 2000; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; font-family: 'Arial', sans-serif; min-width: 200px;">
       <div id="player-level" style="font-size: 18px; font-weight: bold; margin-bottom: 10px; text-align: center; color: #FFD700;">Niveau 1</div>
       <div style="margin-bottom: 5px; font-size: 12px; color: #ccc;">Expérience:</div>
       <div style="background: #333; border-radius: 10px; height: 20px; margin-bottom: 5px; overflow: hidden; border: 2px solid #555;">
@@ -100,7 +105,7 @@
     
     
     <!-- Debug Info -->
-    <div id="debug-info" style="position: fixed; top: 10px; left: 10px; z-index: 2000; color: white; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px;">
+    <div id="debug-info" style="position: fixed; top: 10px; left: 10px; z-index: 2000; color: white; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; display: none;">
       <div>Robot Position: <span id="robot-pos">0,0,0</span></div>
       <div>Nearby Objects: <span id="enemy-count">0</span></div>
       <div>Status: <span id="combat-status">Exploring</span></div>

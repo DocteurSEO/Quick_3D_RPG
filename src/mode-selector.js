@@ -266,7 +266,7 @@ export const mode_selector = (() => {
           backdrop-filter: blur(10px);
           border: 1px solid rgba(255, 255, 255, 0.2);
         `;
-        document.body.appendChild(indicator);
+        //document.body.appendChild(indicator);
       }
       
       const modeConfig = advanced_question_manager.manager.getModeConfig();

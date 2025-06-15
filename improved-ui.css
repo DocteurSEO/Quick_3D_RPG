@@ -3,14 +3,15 @@
 /* === BARRES DE VIE AMÉLIORÉES EN HAUT === */
 .health-overlay {
   position: fixed !important;
-  top: 60px !important;
+  top: 20px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
   display: flex !important;
-  gap: 60px !important;
+  gap: 40px !important;
   z-index: 2000 !important;
   pointer-events: all !important;
   animation: slideDownHealth 0.5s ease-out !important;
+  justify-content: center !important;
 }
 
 @keyframes slideDownHealth {
@@ -28,14 +29,14 @@
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
-  gap: 12px !important;
+  gap: 10px !important;
   background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(30, 30, 30, 0.9)) !important;
-  padding: 20px 25px !important;
-  border: 3px solid rgba(255, 255, 255, 0.8) !important;
-  border-radius: 15px !important;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4) !important;
-  backdrop-filter: blur(10px) !important;
-  min-width: 200px !important;
+  padding: 15px 20px !important;
+  border: 2px solid rgba(255, 255, 255, 0.8) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+  backdrop-filter: blur(8px) !important;
+  min-width: 180px !important;
   transition: all 0.3s ease !important;
 }
 
@@ -54,13 +55,13 @@
 }
 
 .health-bar {
-  width: 180px !important;
-  height: 20px !important;
+  width: 160px !important;
+  height: 18px !important;
   background: rgba(50, 50, 50, 0.8) !important;
   border: 2px solid rgba(255, 255, 255, 0.3) !important;
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   overflow: hidden !important;
-  position: relative !important;
+  
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;
 }
 
@@ -176,6 +177,19 @@
   font-family: 'Courier New', monospace !important;
   position: relative !important;
   overflow: hidden !important;
+}
+
+.quiz-option .arrow {
+  color: #ffff00 !important;
+  font-weight: bold !important;
+  margin-right: 10px !important;
+  font-size: 1.2em !important;
+  opacity: 0 !important;
+  transition: opacity 0.2s ease !important;
+}
+
+.quiz-option .option-text {
+  flex: 1 !important;
 }
 
 .quiz-option:hover {
@@ -294,6 +308,10 @@
   opacity: 1 !important;
 }
 
+.option-text {
+  flex: 1 !important;
+}
+
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
@@ -318,17 +336,22 @@
 /* === RESPONSIVE === */
 @media (max-width: 768px) {
   .health-overlay {
-    gap: 30px !important;
-    top: 20px !important;
+    gap: 20px !important;
+    top: 15px !important;
   }
   
   .health-bar-container {
-    padding: 15px 20px !important;
-    min-width: 150px !important;
+    padding: 12px 16px !important;
+    min-width: 140px !important;
   }
   
   .health-bar {
-    width: 140px !important;
+    width: 120px !important;
+    height: 16px !important;
+  }
+  
+  .health-bar-container span {
+    font-size: 14px !important;
   }
   
   .combat-panel {
@@ -336,9 +359,5 @@
     bottom: 20px !important;
     right: 5vw !important;
     left: 5vw !important;
-  }
-  
-  .quiz-options {
-    grid-template-columns: 1fr !important;
   }
 }

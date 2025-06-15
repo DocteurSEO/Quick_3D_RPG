@@ -2,6 +2,7 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.118.1/build/three.m
 import {entity} from './entity.js';
 import {game_config} from './game-config.js';
 import {quiz_database} from './quiz-database-children.js';
+import {spatial_audio_system} from './spatial-audio-system.js';
 
 export const combat_system = (() => {
   const {GameConfig} = game_config;
@@ -53,14 +54,44 @@ export const combat_system = (() => {
       
       // UI will be initialized when combat starts
       this._keydownHandler = null;
+      
+      // Système d'audio spatial
+      this._spatialAudio = null;
     }
 
     InitComponent() {
       console.log('✅ CombatSystem initialized');
+      
+      // Initialiser le système d'audio spatial
+      this._spatialAudio = new spatial_audio_system.SpatialAudioSystem();
+      
+      // Initialiser le contrôle audio
+      setTimeout(() => {
+        this._InitializeAudioControl();
+      }, 100); // Petit délai pour s'assurer que le DOM est prêt
+      
       this._RegisterHandler('combat.start', (m) => { 
         this._StartCombat(m); 
       });
       this._RegisterHandler('combat.end', (m) => { this._EndCombat(m); });
+    }
+
+    _UpdateSpatialAudio() {
+      if (!this._spatialAudio || !this._parent) return;
+      
+      // Mettre à jour la position du listener basée sur la position du joueur
+      const playerEntity = this.FindEntity('player');
+      if (playerEntity && playerEntity._translation) {
+        const pos = playerEntity._translation;
+        this._spatialAudio.UpdateListenerPosition(pos.x, pos.y, pos.z);
+        
+        // Mettre à jour l'orientation basée sur la rotation du joueur
+        if (playerEntity._rotation) {
+          const forward = new THREE.Vector3(0, 0, -1);
+          forward.applyQuaternion(playerEntity._rotation);
+          this._spatialAudio.UpdateListenerOrientation(forward.x, forward.y, forward.z);
+        }
+      }
     }
 
     _InitUI() {
@@ -599,6 +630,10 @@ export const combat_system = (() => {
       setTimeout(() => {
         this._LoadRandomQuiz();
         this._AddCombatLog('Combat commencé !');
+        
+        // Arrêter l'audio d'ambiance pendant le combat
+        this._StopAmbianceAudio();
+        
         this._PlayCombatStartSound();
       }, 100);
     }
@@ -618,6 +653,9 @@ export const combat_system = (() => {
         this._AwardXP(xpReward);
         this._AddCombatLogAnimated(`🎉 Victoire ! Vous avez gagné ${xpReward} XP !`, 'success');
         this._ShowVictoryEffect();
+        
+        // Lancer la cinématique de victoire
+        this._StartVictoryCinematic();
       } else {
         this._PlayUISound('incorrect');
         this._AddCombatLogAnimated('💀 Défaite...', 'error');
@@ -627,9 +665,14 @@ export const combat_system = (() => {
         this._RespawnPlayer();
       }
       
-      // Delay before hiding UI to show final message
+      // Delay before hiding UI to show final message and cinematic
+      const delayTime = message.playerWon ? 8000 : 2000; // 8 secondes pour la nouvelle cinématique plus longue
+      
       setTimeout(() => {
         this._HideCombatUIAnimated();
+        
+        // Arrêter le son de combat (si pas déjà fait par la cinématique)
+        this._StopCombatAudio();
         
         // Set combat state to false
         this._isInCombat = false;
@@ -647,13 +690,18 @@ export const combat_system = (() => {
         this._isTransitioning = true;
         this._cameraTransitionProgress = 0;
         
+        // Relancer l'audio d'ambiance après la fin du combat
+        if (this._IsAudioEnabled()) {
+          this._RestartAmbianceAudio();
+        }
+        
         // Re-enable player movement after camera transition
         setTimeout(() => {
           this._EnablePlayerMovement();
         }, 1000);
         
         console.log('✅ Combat ended, isInCombat:', this._isInCombat);
-      }, 2000);
+      }, delayTime);
     }
 
     _ShowCombatUI() {
@@ -849,8 +897,7 @@ export const combat_system = (() => {
           this._DamageMonster(playerDamage);
           this._ShakeScreen(false); // Victory shake
           
-          // Play victory sound and create damage effect
-          this._PlayVictorySound();
+          // Create damage effect
           if (this._currentMonster && this._currentMonster._position) {
             this._CreateDamageEffect(this._currentMonster._position, playerDamage, false);
           }
@@ -1307,6 +1354,9 @@ export const combat_system = (() => {
 
     _AwardXP(amount) {
       this._playerXP += amount;
+      
+      // Play victory sound when gaining XP
+      this._PlayVictorySound();
       
       // Show XP notification
       const xpNotification = document.getElementById('xp-notification');
@@ -2043,6 +2093,11 @@ export const combat_system = (() => {
         this._UpdateCameraTransition(timeElapsed);
       }
       
+      // Mettre à jour l'audio spatial pendant le combat
+      if (this._isInCombat) {
+        this._UpdateSpatialAudio();
+      }
+      
       // Disable third person camera during combat
       if (this._params.target && this._params.target._parent) {
         if (this._isInCombat) {
@@ -2222,8 +2277,201 @@ export const combat_system = (() => {
       }
     }
     
-    _PlayCombatStartSound() {
-      this._PlayDynamicSound('combat_start', [400, 600, 800], [0.2, 0.15, 0.1], [0.1, 0.2, 0.3]);
+    async _PlayCombatStartSound() {
+      // Vérifier si l'audio est activé
+      if (!this._IsAudioEnabled()) {
+        console.log('🔇 Sons de combat désactivés par l\'utilisateur');
+        return;
+      }
+
+      try {
+        // Arrêter le son précédent s'il existe
+        if (this._currentCombatAudio) {
+          this._currentCombatAudio.pause();
+          this._currentCombatAudio.currentTime = 0;
+        }
+        
+        // Charger la liste des sons de combat
+        const response = await fetch('/resources/audios/combat/data.json');
+        const combatSounds = await response.json();
+        
+        // Sélectionner un son aléatoire
+        const randomIndex = Math.floor(Math.random() * combatSounds.length);
+        const selectedSound = combatSounds[randomIndex];
+        
+        // Créer et jouer l'audio en boucle
+        this._currentCombatAudio = new Audio(`/resources/audios/combat/${selectedSound}`);
+        this._currentCombatAudio.volume = 0.5; // Volume réduit
+        this._currentCombatAudio.loop = true; // Mettre en boucle
+        
+        console.log(`🎵 Lecture du son de combat en boucle: ${selectedSound}`);
+        await this._currentCombatAudio.play();
+        
+      } catch (error) {
+        console.warn('Erreur lors de la lecture du son de combat:', error);
+        // Fallback vers l'ancien système en cas d'erreur
+        this._PlayDynamicSound('combat_start', [400, 600, 800], [0.2, 0.15, 0.1], [0.1, 0.2, 0.3]);
+      }
+    }
+
+    _IsAudioEnabled() {
+      // Vérifier l'état du bouton audio dans le localStorage
+      const audioEnabled = localStorage.getItem('combatAudioEnabled');
+      return audioEnabled === null || audioEnabled === 'true';
+    }
+
+    _InitializeAudioControl() {
+      const audioControl = document.getElementById('audio-control');
+      const audioIcon = document.getElementById('audio-icon');
+      
+      if (audioControl && audioIcon) {
+        // Initialiser l'état du bouton
+        this._UpdateAudioButtonState();
+        
+        // Ajouter l'événement de clic
+        audioControl.addEventListener('click', () => {
+          const currentState = this._IsAudioEnabled();
+          const newState = !currentState;
+          
+          localStorage.setItem('combatAudioEnabled', newState.toString());
+          this._UpdateAudioButtonState();
+          
+          // Arrêter l'audio en cours si on désactive
+          if (!newState) {
+            this._StopCombatAudio();
+            // Arrêter aussi l'audio d'ambiance
+            this._StopAmbianceAudio();
+          } else {
+            if (this._isInCombat) {
+              // Relancer le son si on réactive l'audio pendant un combat
+              this._PlayCombatStartSound();
+            } else {
+              // Relancer l'audio d'ambiance si on n'est pas en combat
+              this._RestartAmbianceAudio();
+            }
+          }
+          
+          console.log(`🔊 Audio ${newState ? 'activé' : 'désactivé'}`);
+        });
+      }
+    }
+
+    _UpdateAudioButtonState() {
+      const audioIcon = document.getElementById('audio-icon');
+      if (audioIcon) {
+        const isEnabled = this._IsAudioEnabled();
+        audioIcon.textContent = isEnabled ? '🔊' : '🔇';
+        audioIcon.style.color = isEnabled ? '#4CAF50' : '#f44336';
+      }
+    }
+    
+    _StopCombatAudio() {
+      if (this._currentCombatAudio) {
+        this._currentCombatAudio.pause();
+        this._currentCombatAudio.currentTime = 0;
+        this._currentCombatAudio = null;
+        console.log('🔇 Son de combat arrêté');
+      }
+    }
+    
+    _StopAmbianceAudio() {
+      // Accéder à l'instance principale de l'application pour arrêter l'audio d'ambiance
+      if (window._APP && window._APP._StopAmbianceAudio) {
+        window._APP._StopAmbianceAudio();
+      }
+    }
+    
+    _RestartAmbianceAudio() {
+      // Accéder à l'instance principale de l'application pour redémarrer l'audio d'ambiance
+      if (window._APP && window._APP._PlayNextAmbianceSound) {
+        setTimeout(() => {
+          window._APP._PlayNextAmbianceSound();
+        }, 500); // Petit délai pour éviter les conflits
+      }
+    }
+    
+    _StartVictoryCinematic() {
+      if (!this._params.camera || !this._params.target) return;
+      
+      console.log('🎬 Démarrage de la cinématique de victoire');
+      
+      // Arrêter le son de combat immédiatement
+      this._StopCombatAudio();
+      
+      const camera = this._params.camera;
+      const playerPos = this._params.target._position;
+      
+      // Paramètres de la cinématique
+      const baseRadius = 15; // Distance de base de la caméra au joueur
+      const height = 8; // Hauteur initiale
+      const finalHeight = 50; // Hauteur finale
+      const duration = 6000; // 6 secondes (plus lent)
+      
+      let startTime = Date.now();
+      
+      const animateCinematic = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        
+        if (progress < 0.4) {
+          // Phase 1: Rotation 180° plus lente autour du joueur (40% du temps)
+          const rotationProgress = progress / 0.4;
+          const angle = rotationProgress * Math.PI; // 180 degrés seulement
+          
+          camera.position.x = playerPos.x + Math.cos(angle) * baseRadius;
+          camera.position.z = playerPos.z + Math.sin(angle) * baseRadius;
+          camera.position.y = height + rotationProgress * 3; // Montée plus douce
+          
+          // Regarder le joueur
+          camera.lookAt(playerPos.x, playerPos.y + 2, playerPos.z);
+        } else if (progress < 0.6) {
+          // Phase 2: Zoom avant (20% du temps)
+          const zoomProgress = (progress - 0.4) / 0.2;
+          const easeInOut = 0.5 * (1 - Math.cos(Math.PI * zoomProgress));
+          const zoomRadius = baseRadius * (1 - 0.6 * easeInOut); // Zoom jusqu'à 40% de la distance
+          
+          camera.position.x = playerPos.x + Math.cos(Math.PI) * zoomRadius;
+          camera.position.z = playerPos.z + Math.sin(Math.PI) * zoomRadius;
+          camera.position.y = height + 3;
+          
+          // Regarder le joueur
+          camera.lookAt(playerPos.x, playerPos.y + 2, playerPos.z);
+        } 
+        
+        else  {
+          // Phase 3: Dézoom (20% du temps)
+          const dezoomProgress = (progress - 0.6) / 0.2;
+          const easeInOut = 0.5 * (1 - Math.cos(Math.PI * dezoomProgress));
+          const zoomRadius = baseRadius * (0.4 + 0.6 * easeInOut); // Retour à la distance normale
+          
+          camera.position.x = playerPos.x + Math.cos(Math.PI) * zoomRadius;
+          camera.position.z = playerPos.z + Math.sin(Math.PI) * zoomRadius;
+          camera.position.y = height + 3;
+          
+          // Regarder le joueur
+          camera.lookAt(playerPos.x, playerPos.y + 2, playerPos.z);
+        } 
+        
+        // else {
+        //   // Phase 4: Montée vers le ciel (20% du temps)
+        //   const skyProgress = (progress - 0.8) / 0.2;
+        //   const easeOut = 1 - Math.pow(1 - skyProgress, 3); // Easing out
+          
+        //   camera.position.y = height + 3 + easeOut * (finalHeight - height - 3);
+          
+        //   // Regarder vers le bas sur le joueur
+        //   camera.lookAt(playerPos.x, playerPos.y, playerPos.z);
+        // }
+        
+        if (progress < 1) {
+          requestAnimationFrame(animateCinematic);
+        } else {
+          console.log('🎬 Cinématique de victoire terminée');
+          // La transition normale reprendra après
+        }
+      };
+      
+      animateCinematic();
     }
     
     _PlayCameraChangeSound() {
@@ -2239,7 +2487,15 @@ export const combat_system = (() => {
     }
     
     _PlayVictorySound() {
-      this._PlayDynamicSound('victory', [800, 1000, 1200, 1500], [0.2, 0.18, 0.15, 0.12], [0.2, 0.2, 0.2, 0.4]);
+      // Utiliser le système d'audio spatial pour le son de victoire
+      if (this._spatialAudio) {
+        // Jouer le son de victoire à la position du monstre vaincu
+        const monsterPos = this._currentMonster && this._currentMonster._position ? this._currentMonster._position : { x: 0, y: 2, z: 0 };
+        this._spatialAudio.PlayVictorySound(monsterPos.x, monsterPos.y, monsterPos.z);
+      } else {
+        // Fallback vers l'ancien système
+        this._PlayDynamicSound('victory', [800, 1000, 1200, 1500], [0.2, 0.18, 0.15, 0.12], [0.2, 0.2, 0.2, 0.4]);
+      }
     }
     
     _PlayDefeatSound() {

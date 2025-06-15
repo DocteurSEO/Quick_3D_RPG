@@ -27,6 +27,8 @@ import {audio_helper} from './audio-helper.js';
 import {combat_system_simple_fix} from './combat-system-simple-fix.js';
 import {mobile_controls} from './mobile-controls.js';
 import {quiz_database_replacer} from './quiz-database-replacer.js';
+import {spatial_audio_demo} from './spatial-audio-demo.js';
+import {ia001_audio_system} from './ia001-audio-system.js';
 
 
 const _VS = `
@@ -156,6 +158,9 @@ class HackNSlashDemo {
     // Initialiser l'audio helper
     audio_helper.init();
     audio_helper.setMode('children');
+    
+    // Initialiser l'audio d'ambiance
+    this._InitAmbianceAudio();
     
     // Appliquer la correction simple et directe
     combat_system_simple_fix.applyFix();
@@ -376,6 +381,89 @@ class HackNSlashDemo {
     this._sun.target.updateMatrixWorld();
   }
 
+  async _InitAmbianceAudio() {
+    try {
+      // Charger la liste des fichiers audio d'ambiance
+      const response = await fetch('/resources/audios/ambiance/data.json');
+      const ambianceSounds = await response.json();
+      
+      if (ambianceSounds.length === 0) {
+        console.log('🔇 Aucun fichier audio d\'ambiance trouvé');
+        return;
+      }
+      
+      // Variables pour gérer l'audio d'ambiance
+      this._currentAmbianceAudio = null;
+      this._ambianceSounds = ambianceSounds;
+      this._currentAmbianceIndex = 0;
+      
+      // Démarrer la lecture d'ambiance après un délai
+      setTimeout(() => {
+        this._PlayNextAmbianceSound();
+      }, 2000); // Attendre 2 secondes après le chargement
+      
+      console.log('🎵 Système audio d\'ambiance initialisé avec', ambianceSounds.length, 'fichiers');
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'initialisation de l\'audio d\'ambiance:', error);
+    }
+  }
+  
+  _PlayNextAmbianceSound() {
+    // Vérifier si l'audio est activé (utiliser le même système que le combat)
+    const audioEnabled = localStorage.getItem('combatAudioEnabled');
+    if (audioEnabled === 'false') {
+      console.log('🔇 Audio d\'ambiance désactivé');
+      return;
+    }
+    
+    if (!this._ambianceSounds || this._ambianceSounds.length === 0) return;
+    
+    // Arrêter l'audio précédent s'il existe
+    if (this._currentAmbianceAudio) {
+      this._currentAmbianceAudio.pause();
+      this._currentAmbianceAudio.currentTime = 0;
+    }
+    
+    // Sélectionner le fichier audio actuel
+    const selectedSound = this._ambianceSounds[this._currentAmbianceIndex];
+    
+    // Créer et jouer l'audio
+    this._currentAmbianceAudio = new Audio(`/resources/audios/ambiance/${selectedSound}`);
+    this._currentAmbianceAudio.volume = 0.3; // Volume à 50% pour l'ambiance
+    
+    // Quand l'audio se termine, passer au suivant
+    this._currentAmbianceAudio.addEventListener('ended', () => {
+      this._currentAmbianceIndex = (this._currentAmbianceIndex + 1) % this._ambianceSounds.length;
+      setTimeout(() => {
+        this._PlayNextAmbianceSound();
+      }, 1000); // Pause de 1 seconde entre les pistes
+    });
+    
+    // Gérer les erreurs
+    this._currentAmbianceAudio.addEventListener('error', (error) => {
+      console.error('❌ Erreur lors de la lecture de l\'audio d\'ambiance:', error);
+      // Passer au fichier suivant en cas d'erreur
+      this._currentAmbianceIndex = (this._currentAmbianceIndex + 1) % this._ambianceSounds.length;
+      setTimeout(() => {
+        this._PlayNextAmbianceSound();
+      }, 2000);
+    });
+    
+    console.log(`🎵 Lecture audio d'ambiance: ${selectedSound}`);
+    this._currentAmbianceAudio.play().catch(error => {
+      console.error('❌ Impossible de jouer l\'audio d\'ambiance:', error);
+    });
+  }
+  
+  _StopAmbianceAudio() {
+    if (this._currentAmbianceAudio) {
+      this._currentAmbianceAudio.pause();
+      this._currentAmbianceAudio.currentTime = 0;
+      this._currentAmbianceAudio = null;
+      console.log('🔇 Audio d\'ambiance arrêté');
+    }
+  }
+
   _RAF() {
     requestAnimationFrame((t) => {
       if (this._previousRAF === null) {
@@ -404,4 +492,9 @@ let _APP = null;
 
 window.addEventListener('DOMContentLoaded', () => {
   _APP = new HackNSlashDemo();
+  // Exposer l'instance globalement pour que d'autres systèmes puissent y accéder
+  window._APP = _APP;
 });
+
+// Exposer aussi la classe pour les tests
+window.HackNSlashDemo = HackNSlashDemo;

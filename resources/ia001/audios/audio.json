@@ -1,0 +1,5 @@
+{
+    "walk": "./walk.mp3",
+    "fight": "./fight.mp3",
+    "die": "./die.mp3"
+}
