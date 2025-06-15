@@ -347,21 +347,44 @@ class HackNSlashDemo {
     }));
     this._entityManager.Add(combatEntity, 'combat-system');
     
-    // Add IA001 - First enemy robot using ia001 specific assets
-    const ia001 = new entity.Entity();
-    ia001.AddComponent(new npc_entity.NPCController({
-        camera: this._camera,
-        scene: this._scene,
-        resourceName: 'Animation.fbx',  // IA001 specific model
-        resourcePath: './resources/ia001/source/',
-        texturesPath: './resources/ia001/textures/',
-        name: 'IA001',
-        isIA001: true  // Flag to use IA001-specific behavior
-    }));
-    ia001.AddComponent(
-        new spatial_grid_controller.SpatialGridController({grid: this._grid}));
-    ia001.SetPosition(new THREE.Vector3(20, 0, 20)); // Position away from player
-    this._entityManager.Add(ia001, 'ia001');
+    // Add 10 IA001 robots positioned randomly around the player
+    this._SpawnIA001Robots();
+  }
+/// TODO : Nombre enemis
+  _SpawnIA001Robots() {
+    const playerPosition = new THREE.Vector3(0, 0, 0); // Player starts at origin
+    const minDistance = 100; // Distance minimale du joueur (augmentée)
+    const maxDistance = 1180; // Distance maximale du joueur (augmentée)
+    
+    for (let i = 0; i < 25; i++) {
+      // Générer une position aléatoire autour du joueur
+      const angle = Math.random() * Math.PI * 2; // Angle aléatoire
+      const distance = minDistance + Math.random() * (maxDistance - minDistance); // Distance aléatoire
+      
+      const x = playerPosition.x + Math.cos(angle) * distance;
+      const z = playerPosition.z + Math.sin(angle) * distance;
+      const y = 0; // Hauteur au sol
+      
+      // Créer l'entité IA001
+      const ia001 = new entity.Entity();
+      ia001.AddComponent(new npc_entity.NPCController({
+          camera: this._camera,
+          scene: this._scene,
+          resourceName: 'Animation.fbx',  // IA001 specific model
+          resourcePath: './resources/ia001/source/',
+          texturesPath: './resources/ia001/textures/',
+          name: `IA001_${i + 1}`, // Nom unique pour chaque IA001
+          isIA001: true  // Flag to use IA001-specific behavior
+      }));
+      ia001.AddComponent(
+          new spatial_grid_controller.SpatialGridController({grid: this._grid}));
+      ia001.SetPosition(new THREE.Vector3(x, y, z));
+      this._entityManager.Add(ia001, `ia001_${i + 1}`);
+      
+      console.log(`🤖 IA001_${i + 1} spawned at position (${x.toFixed(1)}, ${y}, ${z.toFixed(1)})`);
+    }
+    
+    console.log('✅ 10 IA001 robots spawned randomly around the player!');
   }
 
   _OnWindowResize() {

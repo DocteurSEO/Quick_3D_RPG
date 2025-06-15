@@ -206,7 +206,7 @@ export const spatial_audio_system = (() => {
     // Jouer le son de victoire avec effet spatial
     PlayVictorySound(x = 0, y = 2, z = 0) {
       return this.PlaySpatialSound('victory', x, y, z, {
-        volume: 0.8,
+        volume: 1.0, // Volume augmenté pour plus d'impact
         refDistance: 2,
         rolloffFactor: 0.5 // Son moins atténué par la distance
       });

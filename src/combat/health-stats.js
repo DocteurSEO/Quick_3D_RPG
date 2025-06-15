@@ -156,13 +156,13 @@ export const health_stats = (() => {
       this._playerXPToNextLevel = GameConfig.formulas.xpToNextLevel(this._playerLevel);
       
       // Award upgrade points
-      this._availableUpgradePoints += GameConfig.progression.upgradePointsPerLevel;
+      this._availableUpgradePoints += GameConfig.player.statPointsPerLevel;
       this._pendingLevelUp = true;
       
       console.log(`🎉 LEVEL UP! ${oldLevel} → ${this._playerLevel}`);
       console.log(`Health increased by ${healthIncrease} (${oldMaxHealth} → ${this._playerMaxHealth})`);
       console.log(`Next level requires ${this._playerXPToNextLevel} XP`);
-      console.log(`Gained ${GameConfig.progression.upgradePointsPerLevel} upgrade points`);
+      console.log(`Gained ${GameConfig.player.statPointsPerLevel} upgrade points`);
       
       if (this._combatLogger) {
         this._combatLogger.addLevelUpMessage(this._playerLevel);
@@ -200,17 +200,15 @@ export const health_stats = (() => {
         return false;
       }
       
-      const costs = GameConfig.progression.upgradeCosts;
-      
       switch (attribute) {
         case 'damage':
-          this._playerDamageBonus += costs.damage.increase;
+          this._playerDamageBonus += GameConfig.player.damagePerPoint;
           break;
         case 'heal':
-          this._playerHealBonus += costs.heal.increase;
+          this._playerHealBonus += GameConfig.player.healPerPoint;
           break;
         case 'health':
-          const healthIncrease = costs.health.increase;
+          const healthIncrease = GameConfig.player.healthPerLevel;
           this._playerMaxHealth += healthIncrease;
           this._playerHealth += healthIncrease; // Also increase current health
           break;

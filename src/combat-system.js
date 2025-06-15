@@ -1396,7 +1396,7 @@ export const combat_system = (() => {
       this._playerHealth += healthIncrease; // Add the health increase to current health
       
       // Add upgrade points
-      this._availableUpgradePoints += GameConfig.progression.pointsPerLevel;
+      this._availableUpgradePoints += GameConfig.player.statPointsPerLevel;
       this._pendingLevelUp = true;
       
       // Show level up notification with upgrade choice
@@ -2301,7 +2301,7 @@ export const combat_system = (() => {
         
         // Créer et jouer l'audio en boucle
         this._currentCombatAudio = new Audio(`/resources/audios/combat/${selectedSound}`);
-        this._currentCombatAudio.volume = 0.5; // Volume réduit
+        this._currentCombatAudio.volume = 0.2; // Volume réduit
         this._currentCombatAudio.loop = true; // Mettre en boucle
         
         console.log(`🎵 Lecture du son de combat en boucle: ${selectedSound}`);
@@ -2401,7 +2401,7 @@ export const combat_system = (() => {
       const camera = this._params.camera;
       const playerPos = this._params.target._position;
       
-      // Paramètres de la cinématique
+      // TODO :  Paramètres de la cinématique
       const baseRadius = 15; // Distance de base de la caméra au joueur
       const height = 8; // Hauteur initiale
       const finalHeight = 50; // Hauteur finale
@@ -2413,9 +2413,9 @@ export const combat_system = (() => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
         
-        if (progress < 0.4) {
+        if (progress < 0.8) {
           // Phase 1: Rotation 180° plus lente autour du joueur (40% du temps)
-          const rotationProgress = progress / 0.4;
+          const rotationProgress = progress / 0.8;
           const angle = rotationProgress * Math.PI; // 180 degrés seulement
           
           camera.position.x = playerPos.x + Math.cos(angle) * baseRadius;
@@ -2424,7 +2424,7 @@ export const combat_system = (() => {
           
           // Regarder le joueur
           camera.lookAt(playerPos.x, playerPos.y + 2, playerPos.z);
-        } else if (progress < 0.6) {
+        } else  {
           // Phase 2: Zoom avant (20% du temps)
           const zoomProgress = (progress - 0.4) / 0.2;
           const easeInOut = 0.5 * (1 - Math.cos(Math.PI * zoomProgress));
@@ -2438,19 +2438,7 @@ export const combat_system = (() => {
           camera.lookAt(playerPos.x, playerPos.y + 2, playerPos.z);
         } 
         
-        else  {
-          // Phase 3: Dézoom (20% du temps)
-          const dezoomProgress = (progress - 0.6) / 0.2;
-          const easeInOut = 0.5 * (1 - Math.cos(Math.PI * dezoomProgress));
-          const zoomRadius = baseRadius * (0.4 + 0.6 * easeInOut); // Retour à la distance normale
-          
-          camera.position.x = playerPos.x + Math.cos(Math.PI) * zoomRadius;
-          camera.position.z = playerPos.z + Math.sin(Math.PI) * zoomRadius;
-          camera.position.y = height + 3;
-          
-          // Regarder le joueur
-          camera.lookAt(playerPos.x, playerPos.y + 2, playerPos.z);
-        } 
+       
         
         // else {
         //   // Phase 4: Montée vers le ciel (20% du temps)
@@ -2837,12 +2825,12 @@ export const combat_system = (() => {
           <p>Vous avez ${this._availableUpgradePoints} points à dépenser</p>
           <div class="upgrade-options">
             <div class="upgrade-option" data-type="damage">
-              <h3>⚔️ Dégâts (+${GameConfig.progression.damagePerPoint} par point)</h3>
+              <h3>⚔️ Dégâts (+${GameConfig.player.damagePerPoint} par point)</h3>
               <p>Actuellement: +${this._playerDamageBonus}</p>
               <button onclick="combatSystem._UpgradeAttribute('damage')">Améliorer</button>
             </div>
             <div class="upgrade-option" data-type="heal">
-              <h3>💚 Soins (+${GameConfig.progression.healPerPoint} par point)</h3>
+              <h3>💚 Soins (+${GameConfig.player.healPerPoint} par point)</h3>
               <p>Actuellement: +${this._playerHealBonus}</p>
               <button onclick="combatSystem._UpgradeAttribute('heal')">Améliorer</button>
             </div>
@@ -2937,10 +2925,10 @@ export const combat_system = (() => {
       }
       
       if (type === 'damage') {
-        this._playerDamageBonus += GameConfig.progression.damagePerPoint;
+        this._playerDamageBonus += GameConfig.player.damagePerPoint;
         console.log(`⚔️ Dégâts améliorés! Bonus: +${this._playerDamageBonus}`);
       } else if (type === 'heal') {
-        this._playerHealBonus += GameConfig.progression.healPerPoint;
+        this._playerHealBonus += GameConfig.player.healPerPoint;
         console.log(`💚 Soins améliorés! Bonus: +${this._playerHealBonus}`);
       }
       
