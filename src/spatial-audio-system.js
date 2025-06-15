@@ -15,6 +15,8 @@ export const spatial_audio_system = (() => {
       this._enabled = true;
       this._masterGain = null;
       this._loadedAudioBuffers = new Map();
+      this._isMuted = false;
+      this._originalVolume = 0.8;
       
       // Configuration par défaut pour l'audio spatial
       this._defaultConfig = {
@@ -271,11 +273,32 @@ export const spatial_audio_system = (() => {
     // Régler le volume principal
     SetMasterVolume(volume) {
       if (this._masterGain) {
-        this._masterGain.gain.setValueAtTime(
-          Math.max(0, Math.min(1, volume)), 
-          this._audioContext.currentTime
-        );
+        this._originalVolume = volume;
+        if (!this._isMuted) {
+          this._masterGain.gain.setValueAtTime(
+            Math.max(0, Math.min(1, volume)), 
+            this._audioContext.currentTime
+          );
+        }
       }
+    }
+
+    ToggleMute() {
+      if (!this._masterGain) return;
+      
+      this._isMuted = !this._isMuted;
+      
+      if (this._isMuted) {
+        this._masterGain.gain.setValueAtTime(0, this._audioContext.currentTime);
+      } else {
+        this._masterGain.gain.setValueAtTime(this._originalVolume, this._audioContext.currentTime);
+      }
+      
+      return this._isMuted;
+    }
+
+    GetMuteState() {
+      return this._isMuted;
     }
 
     // Nettoyer les ressources

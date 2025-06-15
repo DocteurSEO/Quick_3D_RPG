@@ -23,6 +23,9 @@ export const gamepad_controller = (() => {
         sprint: false
       };
       
+      // État audio
+      this._audioMuted = false;
+      
       // Mapping des boutons pour différents types de manettes
       this._buttonMapping = {
         // Boutons standards (Xbox/PlayStation)
@@ -291,6 +294,12 @@ export const gamepad_controller = (() => {
           }
           break;
           
+        case 'select':
+          if (isPressed) {
+            this._ToggleAudio();
+          }
+          break;
+          
         case 'start':
           if (isPressed) {
             // Ouvrir/fermer le menu
@@ -341,6 +350,37 @@ export const gamepad_controller = (() => {
           console.log(`🎮 Simulated keyup: ${key}`);
         }
       });
+    }
+    
+    _ToggleAudio() {
+      this._audioMuted = !this._audioMuted;
+      
+      // Utiliser le système audio spatial global si disponible
+      if (window.combatSystemInstance && window.combatSystemInstance._spatialAudio) {
+        const spatialAudio = window.combatSystemInstance._spatialAudio;
+        if (spatialAudio.ToggleMute) {
+          const isMuted = spatialAudio.ToggleMute();
+          this._audioMuted = isMuted;
+        }
+      }
+      
+      // Contrôler tous les éléments audio/vidéo HTML
+      const audioElements = document.querySelectorAll('audio, video');
+      audioElements.forEach(element => {
+        element.muted = this._audioMuted;
+      });
+      
+      // Mettre à jour le bouton audio mobile s'il existe
+      const audioButton = document.getElementById('mobile-audio-button');
+      if (audioButton) {
+        audioButton.innerHTML = this._audioMuted ? '🔇' : '🔊';
+        audioButton.style.borderColor = this._audioMuted ? '#ff4444' : '#00ff00';
+      }
+      
+      // Stocker l'état global
+      window.audioMuted = this._audioMuted;
+      
+      console.log(`Audio ${this._audioMuted ? 'coupé' : 'activé'} via manette`);
     }
     
     _DispatchKeyEvent(type, code) {

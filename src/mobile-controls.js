@@ -23,6 +23,9 @@ export const mobile_controls = (() => {
         right: false
       };
       
+      // État audio
+      this._audioMuted = false;
+      
       if (this._isMobile) {
         this._Init();
       }
@@ -43,7 +46,111 @@ export const mobile_controls = (() => {
     _Init() {
       console.log('📱 Initialisation des contrôles mobiles');
       this._CreateJoystick();
+      this._CreateAudioButton();
       this._AttachEvents();
+    }
+    
+    _CreateAudioButton() {
+      // Bouton de contrôle audio
+      const audioButton = document.createElement('div');
+      audioButton.id = 'mobile-audio-button';
+      audioButton.innerHTML = '🔊';
+      audioButton.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        width: 60px;
+        height: 60px;
+        background: rgba(0, 0, 0, 0.7);
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+        user-select: none;
+        touch-action: manipulation;
+        z-index: 1000;
+        transition: all 0.2s ease;
+        backdrop-filter: blur(10px);
+      `;
+      
+      // Événements tactiles pour le bouton audio
+      audioButton.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        audioButton.style.transform = 'scale(0.9)';
+        audioButton.style.background = 'rgba(255, 255, 255, 0.2)';
+      });
+      
+      audioButton.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        audioButton.style.transform = 'scale(1)';
+        audioButton.style.background = 'rgba(0, 0, 0, 0.7)';
+        this._ToggleAudio();
+      });
+      
+      document.body.appendChild(audioButton);
+    }
+    
+    _ToggleAudio() {
+      this._audioMuted = !this._audioMuted;
+      const audioButton = document.getElementById('mobile-audio-button');
+      
+      // Mettre à jour l'apparence du bouton
+      if (audioButton) {
+        audioButton.innerHTML = this._audioMuted ? '🔇' : '🔊';
+        audioButton.style.borderColor = this._audioMuted ? '#ff4444' : '#00ff00';
+      }
+      
+      // Utiliser le système audio spatial global si disponible
+      if (window.combatSystemInstance && window.combatSystemInstance._spatialAudio) {
+        const spatialAudio = window.combatSystemInstance._spatialAudio;
+        if (spatialAudio.ToggleMute) {
+          const isMuted = spatialAudio.ToggleMute();
+          this._audioMuted = isMuted;
+          
+          // Mettre à jour le bouton avec l'état réel
+          if (audioButton) {
+            audioButton.innerHTML = isMuted ? '🔇' : '🔊';
+            audioButton.style.borderColor = isMuted ? '#ff4444' : '#00ff00';
+          }
+        }
+      }
+      
+      // Contrôler tous les autres contextes audio
+      const audioContexts = [];
+      
+      // Chercher tous les contextes audio dans le DOM
+      if (window.AudioContext || window.webkitAudioContext) {
+        // Suspendre/reprendre les nouveaux contextes audio créés
+        try {
+          const testContext = new (window.AudioContext || window.webkitAudioContext)();
+          if (this._audioMuted) {
+            if (testContext.state === 'running') {
+              testContext.suspend();
+            }
+          } else {
+            if (testContext.state === 'suspended') {
+              testContext.resume();
+            }
+          }
+          testContext.close();
+        } catch (e) {
+          console.warn('Impossible de contrôler le contexte audio:', e);
+        }
+      }
+      
+      // Contrôler tous les éléments audio/vidéo HTML
+      const audioElements = document.querySelectorAll('audio, video');
+      audioElements.forEach(element => {
+        element.muted = this._audioMuted;
+      });
+      
+      // Stocker l'état global
+      window.audioMuted = this._audioMuted;
+      
+      console.log(`Audio ${this._audioMuted ? 'coupé' : 'activé'}`);
     }
     
     _CreateJoystick() {
@@ -93,25 +200,27 @@ export const mobile_controls = (() => {
       // Bouton d'action (pour interagir)
       const actionButton = document.createElement('div');
       actionButton.id = 'mobile-action-button';
-      actionButton.innerHTML = '⚡';
+      actionButton.innerHTML = '⚔️';
       actionButton.style.cssText = `
         position: fixed;
-        bottom: 50px;
-        right: 30px;
-        width: 60px;
-        height: 60px;
-        background: rgba(255, 255, 255, 0.3);
+        bottom: 120px;
+        right: 20px;
+        width: 80px;
+        height: 80px;
+        background: rgba(255, 100, 100, 0.8);
         border: 3px solid rgba(255, 255, 255, 0.5);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
+        font-size: 32px;
         color: white;
-        z-index: 1000;
-        touch-action: none;
         user-select: none;
+        touch-action: manipulation;
+        z-index: 1000;
+        transition: all 0.2s ease;
         backdrop-filter: blur(10px);
+        box-shadow: 0 4px 20px rgba(255, 100, 100, 0.3);
         cursor: pointer;
       `;
       
@@ -121,22 +230,24 @@ export const mobile_controls = (() => {
       sprintButton.innerHTML = '🏃';
       sprintButton.style.cssText = `
         position: fixed;
-        bottom: 120px;
-        right: 30px;
-        width: 50px;
-        height: 50px;
-        background: rgba(255, 255, 255, 0.3);
+        bottom: 20px;
+        right: 20px;
+        width: 70px;
+        height: 70px;
+        background: rgba(100, 255, 100, 0.8);
         border: 3px solid rgba(255, 255, 255, 0.5);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 20px;
+        font-size: 28px;
         color: white;
-        z-index: 1000;
-        touch-action: none;
         user-select: none;
+        touch-action: manipulation;
+        z-index: 1000;
+        transition: all 0.2s ease;
         backdrop-filter: blur(10px);
+        box-shadow: 0 4px 20px rgba(100, 255, 100, 0.3);
         cursor: pointer;
       `;
       
@@ -164,26 +275,32 @@ export const mobile_controls = (() => {
       actionButton.addEventListener('touchstart', (e) => {
         e.preventDefault();
         actionButton.style.transform = 'scale(0.9)';
+        actionButton.style.background = 'rgba(255, 150, 150, 0.9)';
+        actionButton.style.boxShadow = '0 2px 10px rgba(255, 100, 100, 0.5)';
         this._TriggerAction();
       });
       
       actionButton.addEventListener('touchend', (e) => {
         e.preventDefault();
         actionButton.style.transform = 'scale(1)';
+        actionButton.style.background = 'rgba(255, 100, 100, 0.8)';
+        actionButton.style.boxShadow = '0 4px 20px rgba(255, 100, 100, 0.3)';
       });
       
       // Bouton de sprint
       sprintButton.addEventListener('touchstart', (e) => {
         e.preventDefault();
         sprintButton.style.transform = 'scale(0.9)';
-        sprintButton.style.background = 'rgba(255, 255, 0, 0.5)';
+        sprintButton.style.background = 'rgba(150, 255, 150, 0.9)';
+        sprintButton.style.boxShadow = '0 2px 10px rgba(100, 255, 100, 0.5)';
         this._SetSprint(true);
       });
       
       sprintButton.addEventListener('touchend', (e) => {
         e.preventDefault();
         sprintButton.style.transform = 'scale(1)';
-        sprintButton.style.background = 'rgba(255, 255, 255, 0.3)';
+        sprintButton.style.background = 'rgba(100, 255, 100, 0.8)';
+        sprintButton.style.boxShadow = '0 4px 20px rgba(100, 255, 100, 0.3)';
         this._SetSprint(false);
       });
     }
@@ -418,8 +535,10 @@ export const mobile_controls = (() => {
       }
       const actionButton = document.getElementById('mobile-action-button');
       const sprintButton = document.getElementById('mobile-sprint-button');
+      const audioButton = document.getElementById('mobile-audio-button');
       if (actionButton) actionButton.style.display = 'flex';
       if (sprintButton) sprintButton.style.display = 'flex';
+      if (audioButton) audioButton.style.display = 'flex';
     }
     
     hide() {
@@ -428,8 +547,10 @@ export const mobile_controls = (() => {
       }
       const actionButton = document.getElementById('mobile-action-button');
       const sprintButton = document.getElementById('mobile-sprint-button');
+      const audioButton = document.getElementById('mobile-audio-button');
       if (actionButton) actionButton.style.display = 'none';
       if (sprintButton) sprintButton.style.display = 'none';
+      if (audioButton) audioButton.style.display = 'none';
     }
     
     // Méthodes du composant
@@ -447,8 +568,10 @@ export const mobile_controls = (() => {
       }
       const actionButton = document.getElementById('mobile-action-button');
       const sprintButton = document.getElementById('mobile-sprint-button');
+      const audioButton = document.getElementById('mobile-audio-button');
       if (actionButton) document.body.removeChild(actionButton);
       if (sprintButton) document.body.removeChild(sprintButton);
+      if (audioButton) document.body.removeChild(audioButton);
     }
   }
   

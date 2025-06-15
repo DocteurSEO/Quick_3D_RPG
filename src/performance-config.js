@@ -53,7 +53,7 @@ export const PerformanceConfig = {
 
   // Monitoring des performances
   monitoring: {
-    enabled: true,
+    enabled: false, // Désactivé pour masquer l'affichage FPS
     fpsThreshold: 30, // En dessous de 30 FPS, réduire la qualité
     autoAdjust: true // Ajuster automatiquement les paramètres
   }
