@@ -1,0 +1,332 @@
+/* UI Améliorée - Style commun adulte/enfant avec barres de vie repositionnées */
+
+/* === BARRES DE VIE AMÉLIORÉES EN HAUT === */
+.health-overlay {
+  position: fixed !important;
+  top: 60px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  display: flex !important;
+  gap: 60px !important;
+  z-index: 2000 !important;
+  pointer-events: all !important;
+  animation: slideDownHealth 0.5s ease-out !important;
+}
+
+@keyframes slideDownHealth {
+  from {
+    transform: translateX(-50%) translateY(-50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.health-bar-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 12px !important;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(30, 30, 30, 0.9)) !important;
+  padding: 20px 25px !important;
+  border: 3px solid rgba(255, 255, 255, 0.8) !important;
+  border-radius: 15px !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4) !important;
+  backdrop-filter: blur(10px) !important;
+  min-width: 200px !important;
+  transition: all 0.3s ease !important;
+}
+
+.health-bar-container:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5) !important;
+}
+
+.health-bar-container span {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  font-size: 16px !important;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8) !important;
+  letter-spacing: 1px !important;
+  text-transform: uppercase !important;
+}
+
+.health-bar {
+  width: 180px !important;
+  height: 20px !important;
+  background: rgba(50, 50, 50, 0.8) !important;
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  position: relative !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5) !important;
+}
+
+.health-fill {
+  height: 100% !important;
+  background: linear-gradient(90deg, #2ed573, #7bed9f, #a4de6c) !important;
+  border-radius: 8px !important;
+  transition: width 0.5s ease, background 0.3s ease !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+/* Animation de pulsation pour la vie */
+.health-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: healthShine 2s infinite;
+}
+
+@keyframes healthShine {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+/* Couleurs dynamiques selon le pourcentage de vie */
+.health-fill {
+  /* Couleur par défaut (vie haute 80-100%) */
+  background: linear-gradient(90deg, #2ed573, #7bed9f, #a4de6c) !important;
+}
+
+/* Vie moyenne (40-80%) */
+.health-fill.medium-health {
+  background: linear-gradient(90deg, #ffa726, #ffcc02, #ffd54f) !important;
+}
+
+/* Vie faible (0-40%) */
+.health-fill.low-health {
+  background: linear-gradient(90deg, #ff4757, #ff6b6b, #ff8e8e) !important;
+  animation: healthDanger 1s infinite alternate !important;
+}
+
+@keyframes healthDanger {
+  from { opacity: 1; }
+  to { opacity: 0.7; }
+}
+
+/* === PANNEAU DE COMBAT AMÉLIORÉ === */
+.combat-panel {
+  position: fixed !important;
+  bottom: 30px !important;
+  right: 30px !important;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(20, 20, 20, 0.95)) !important;
+  border: 3px solid rgba(255, 255, 255, 0.8) !important;
+  border-radius: 20px !important;
+  padding: 25px !important;
+  width: 420px !important;
+  max-width: 45vw !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(15px) !important;
+  animation: slideUpImproved 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  pointer-events: all !important;
+  font-family: 'Arial', sans-serif !important;
+}
+
+@keyframes slideUpImproved {
+  from {
+    transform: translateY(60px) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* === SECTION QUIZ AMÉLIORÉE === */
+.quiz-section {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 15px !important;
+  padding: 20px !important;
+  border: 2px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.quiz-question {
+  color: #ffffff !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  text-align: center !important;
+  margin-bottom: 20px !important;
+  line-height: 1.5 !important;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8) !important;
+}
+
+.quiz-options {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 12px !important;
+  margin-top: 15px !important;
+}
+
+.quiz-option {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)) !important;
+  border: 2px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+  padding: 15px 12px !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  color: #ffffff !important;
+  font-weight: 500 !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
+}
+
+.quiz-option:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1)) !important;
+  transform: translateY(-3px) scale(1.02) !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.quiz-option.selected {
+  background: linear-gradient(135deg, rgba(66, 165, 245, 0.4), rgba(66, 165, 245, 0.2)) !important;
+  border-color: #42a5f5 !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 0 20px rgba(66, 165, 245, 0.3) !important;
+}
+
+.quiz-option.correct {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.4), rgba(76, 175, 80, 0.2)) !important;
+  border-color: #4caf50 !important;
+  animation: correctPulse 0.6s ease;
+}
+
+.quiz-option.incorrect {
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.4), rgba(244, 67, 54, 0.2)) !important;
+  border-color: #f44336 !important;
+  animation: incorrectShake 0.5s ease;
+}
+
+@keyframes correctPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+@keyframes incorrectShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* === MENU D'ACTIONS AMÉLIORÉ === */
+.action-menu {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 15px !important;
+  padding: 20px !important;
+  border: 2px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.menu-title {
+  color: #ffffff !important;
+  font-size: 18px !important;
+  font-weight: bold !important;
+  text-align: center !important;
+  margin-bottom: 15px !important;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.8) !important;
+}
+
+.menu-options {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.menu-option {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)) !important;
+  border: 2px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+  padding: 15px 20px !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 15px !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
+}
+
+.menu-option:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1)) !important;
+  transform: translateX(5px) scale(1.02) !important;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.menu-option.selected {
+  background: linear-gradient(135deg, rgba(66, 165, 245, 0.4), rgba(66, 165, 245, 0.2)) !important;
+  border-color: #42a5f5 !important;
+  transform: translateX(10px) scale(1.05) !important;
+  box-shadow: 0 0 20px rgba(66, 165, 245, 0.3) !important;
+}
+
+/* === FLÈCHES ET INDICATEURS === */
+.arrow {
+  color: #42a5f5 !important;
+  font-weight: bold !important;
+  font-size: 16px !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
+  transition: all 0.3s ease !important;
+}
+
+.menu-option.selected .arrow,
+.quiz-option.selected .arrow {
+  color: #ffffff !important;
+  transform: scale(1.2) !important;
+}
+
+/* === JOURNAL DE COMBAT === */
+.combat-log {
+  background: rgba(0, 0, 0, 0.7) !important;
+  border: 2px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 10px !important;
+  padding: 15px !important;
+  margin-top: 15px !important;
+  max-height: 120px !important;
+  overflow-y: auto !important;
+  color: #ffffff !important;
+  font-family: 'Courier New', monospace !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8) !important;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+  .health-overlay {
+    gap: 30px !important;
+    top: 20px !important;
+  }
+  
+  .health-bar-container {
+    padding: 15px 20px !important;
+    min-width: 150px !important;
+  }
+  
+  .health-bar {
+    width: 140px !important;
+  }
+  
+  .combat-panel {
+    width: 90vw !important;
+    bottom: 20px !important;
+    right: 5vw !important;
+    left: 5vw !important;
+  }
+  
+  .quiz-options {
+    grid-template-columns: 1fr !important;
+  }
+}

@@ -1125,16 +1125,15 @@ export const combat_system = (() => {
       if (playerHealthBar) {
         const healthPercentage = (this._playerHealth / this._playerMaxHealth) * 100;
         playerHealthBar.style.width = healthPercentage + '%';
-        playerHealthBar.style.transition = 'width 0.5s ease-out';
         
-        // Color coding based on health percentage
-        if (healthPercentage > 60) {
-          playerHealthBar.style.background = 'linear-gradient(90deg, #27ae60, #2ecc71)';
-        } else if (healthPercentage > 30) {
-          playerHealthBar.style.background = 'linear-gradient(90deg, #f39c12, #e67e22)';
-        } else {
-          playerHealthBar.style.background = 'linear-gradient(90deg, #e74c3c, #c0392b)';
-          playerHealthBar.style.animation = 'healthPulse 1s infinite';
+        // Remove previous health classes
+        playerHealthBar.classList.remove('low-health', 'medium-health');
+        
+        // Add appropriate health class based on percentage
+        if (healthPercentage <= 40) {
+          playerHealthBar.classList.add('low-health');
+        } else if (healthPercentage <= 80) {
+          playerHealthBar.classList.add('medium-health');
         }
         
         // Add health text overlay
@@ -1146,16 +1145,15 @@ export const combat_system = (() => {
       if (monsterHealthBar && this._currentMonster) {
         const healthPercentage = (this._currentMonster._health / this._currentMonster._maxHealth) * 100;
         monsterHealthBar.style.width = healthPercentage + '%';
-        monsterHealthBar.style.transition = 'width 0.5s ease-out';
         
-        // Color coding for monster health
-        if (healthPercentage > 60) {
-          monsterHealthBar.style.background = 'linear-gradient(90deg, #8e44ad, #9b59b6)';
-        } else if (healthPercentage > 30) {
-          monsterHealthBar.style.background = 'linear-gradient(90deg, #d35400, #e67e22)';
-        } else {
-          monsterHealthBar.style.background = 'linear-gradient(90deg, #c0392b, #e74c3c)';
-          monsterHealthBar.style.animation = 'healthPulse 1s infinite';
+        // Remove previous health classes
+        monsterHealthBar.classList.remove('low-health', 'medium-health');
+        
+        // Add appropriate health class based on percentage
+        if (healthPercentage <= 40) {
+          monsterHealthBar.classList.add('low-health');
+        } else if (healthPercentage <= 80) {
+          monsterHealthBar.classList.add('medium-health');
         }
         
         // Add health text overlay

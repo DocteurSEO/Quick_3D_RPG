@@ -28,15 +28,25 @@ export const health_component = (() => {
       }
 
       const bar = document.getElementById('health-bar');
+      if (bar) {
+        const healthAsPercentage = this._health / this._maxHealth;
+        bar.style.width = Math.floor(200 * healthAsPercentage) + 'px';
+      }
 
-      const healthAsPercentage = this._health / this._maxHealth;
-      bar.style.width = Math.floor(200 * healthAsPercentage) + 'px';
+      const statsElements = {
+        'stats-strength': this._params.strength,
+        'stats-wisdomness': this._params.wisdomness,
+        'stats-benchpress': this._params.benchpress,
+        'stats-curl': this._params.curl,
+        'stats-experience': this._params.experience
+      };
 
-      document.getElementById('stats-strength').innerText = this._params.strength;
-      document.getElementById('stats-wisdomness').innerText = this._params.wisdomness;
-      document.getElementById('stats-benchpress').innerText = this._params.benchpress;
-      document.getElementById('stats-curl').innerText = this._params.curl;
-      document.getElementById('stats-experience').innerText = this._params.experience;
+      for (const [elementId, value] of Object.entries(statsElements)) {
+        const element = document.getElementById(elementId);
+        if (element && value !== undefined) {
+          element.innerText = value;
+        }
+      }
     }
 
     _ComputeLevelXPRequirement() {
