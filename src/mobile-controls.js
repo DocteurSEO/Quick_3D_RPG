@@ -29,10 +29,15 @@ export const mobile_controls = (() => {
     }
     
     _detectMobile() {
-      // Détecter si on est sur mobile/tablette
-      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+      // Détecter si on est sur mobile/tablette ou forcer pour debug
+      const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
              || ('ontouchstart' in window) 
              || (navigator.maxTouchPoints > 0);
+             
+      // Permettre de forcer l'affichage des contrôles pour debug
+      const forceEnable = localStorage.getItem('forceMobileControls') === 'true';
+      
+      return isMobileDevice || forceEnable;
     }
     
     _Init() {
@@ -227,8 +232,13 @@ export const mobile_controls = (() => {
     _UpdateInput(x, y) {
       if (!this._isActive) return;
       
-      const deltaX = x - this._startPos.x;
-      const deltaY = y - this._startPos.y;
+      // Calculer la position relative au centre du joystick
+      const rect = this._joystickContainer.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      
+      const deltaX = x - centerX;
+      const deltaY = y - centerY;
       const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
       
       // Limiter la distance
@@ -241,11 +251,11 @@ export const mobile_controls = (() => {
       // Déplacer le bouton du joystick
       this._joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px) scale(1.1)`;
       
-      // Calculer les directions
-      const normalizedX = knobX / this._maxDistance;
-      const normalizedY = knobY / this._maxDistance;
+      // Calculer les directions (normaliser)
+      const normalizedX = limitedDistance > 0 ? deltaX / this._maxDistance : 0;
+      const normalizedY = limitedDistance > 0 ? deltaY / this._maxDistance : 0;
       
-      // Seuil pour éviter les micro-mouvements
+      // Seuil pour plus de réactivité
       const threshold = 0.3;
       
       this._inputState = {
@@ -254,6 +264,15 @@ export const mobile_controls = (() => {
         left: normalizedX < -threshold,
         right: normalizedX > threshold
       };
+      
+      console.log('📱 Joystick input:', {
+        deltaX: deltaX.toFixed(2),
+        deltaY: deltaY.toFixed(2),
+        normalizedX: normalizedX.toFixed(2),
+        normalizedY: normalizedY.toFixed(2),
+        distance: distance.toFixed(2),
+        inputState: this._inputState
+      });
       
       // Envoyer les inputs au système de jeu
       this._SendInputToGame();
@@ -281,7 +300,10 @@ export const mobile_controls = (() => {
       // Simuler les touches clavier pour le système existant
       this._SimulateKeyboard();
       
-      // Ou envoyer directement via le système de messaging
+      // Alternative: modifier directement l'état des touches du joueur
+      this._DirectInputUpdate();
+      
+      // Envoyer aussi via le système de messaging
       this.Broadcast({
         topic: 'input.mobile',
         forward: this._inputState.forward,
@@ -289,6 +311,20 @@ export const mobile_controls = (() => {
         left: this._inputState.left,
         right: this._inputState.right
       });
+    }
+    
+    _DirectInputUpdate() {
+      // Trouver le composant d'input du joueur et modifier directement ses touches
+      const player = this._parent._parent.Get('player');
+      if (player) {
+        const inputComponent = player.GetComponent('BasicCharacterControllerInput');
+        if (inputComponent && inputComponent._keys) {
+          inputComponent._keys.forward = this._inputState.forward;
+          inputComponent._keys.backward = this._inputState.backward;
+          inputComponent._keys.left = this._inputState.left;
+          inputComponent._keys.right = this._inputState.right;
+        }
+      }
     }
     
     _SimulateKeyboard() {
@@ -301,31 +337,61 @@ export const mobile_controls = (() => {
         this._inputState.right
       ];
       
+      // Initialiser les touches pressées si nécessaire
+      if (!this._pressedKeys) this._pressedKeys = new Set();
+      
       keys.forEach((key, index) => {
         const isPressed = states[index];
         
-        if (isPressed && !this._pressedKeys?.has(key)) {
+        if (isPressed && !this._pressedKeys.has(key)) {
           // Commencer à presser la touche
           this._DispatchKeyEvent('keydown', key);
-          if (!this._pressedKeys) this._pressedKeys = new Set();
           this._pressedKeys.add(key);
-        } else if (!isPressed && this._pressedKeys?.has(key)) {
+          console.log(`📱 Simulated keydown: ${key}`);
+        } else if (!isPressed && this._pressedKeys.has(key)) {
           // Arrêter de presser la touche
           this._DispatchKeyEvent('keyup', key);
           this._pressedKeys.delete(key);
+          console.log(`📱 Simulated keyup: ${key}`);
         }
       });
     }
     
     _DispatchKeyEvent(type, code) {
+      // Mapper les codes vers les keyCodes pour compatibilité
+      const keyCodeMap = {
+        'KeyW': 87,
+        'KeyA': 65, 
+        'KeyS': 83,
+        'KeyD': 68,
+        'Space': 32,
+        'ShiftLeft': 16
+      };
+      
+      const keyCode = keyCodeMap[code];
+      if (!keyCode) {
+        console.warn(`📱 Code non mappé: ${code}`);
+        return;
+      }
+      
       const event = new KeyboardEvent(type, {
         code: code,
         key: code.replace('Key', '').toLowerCase(),
+        keyCode: keyCode,
+        which: keyCode,
         bubbles: true,
-        cancelable: true
+        cancelable: true,
+        repeat: false
       });
       
+      // Marquer l'événement comme provenant des contrôles mobiles
+      event.isMobileInput = true;
+      
+      console.log(`📱 Dispatching ${type} event for ${code} (keyCode: ${keyCode})`);
+      
+      // Dispatch sur document ET window pour maximum compatibilité
       document.dispatchEvent(event);
+      window.dispatchEvent(event);
     }
     
     _TriggerAction() {
