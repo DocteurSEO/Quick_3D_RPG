@@ -26,6 +26,7 @@ import {game_modes_config} from './game-modes-config.js';
 import {audio_helper} from './audio-helper.js';
 import {combat_system_simple_fix} from './combat-system-simple-fix.js';
 import {mobile_controls} from './mobile-controls.js';
+import {gamepad_controller} from './gamepad-controller.js';
 import {quiz_database_replacer} from './quiz-database-replacer.js';
 import {spatial_audio_demo} from './spatial-audio-demo.js';
 import {ia001_audio_system} from './ia001-audio-system.js';
@@ -168,6 +169,9 @@ class HackNSlashDemo {
     // Ajouter les contrôles mobiles
     this._InitMobileControls();
     
+    // Ajouter le contrôleur de manettes
+    this._InitGamepadController();
+    
     // Forcer l'application du mode enfant par défaut
     this._ApplyChildrenModeOnStartup();
   }
@@ -228,6 +232,15 @@ class HackNSlashDemo {
     const mobileControlsEntity = new entity.Entity();
     mobileControlsEntity.AddComponent(new mobile_controls.MobileControls());
     this._entityManager.Add(mobileControlsEntity, 'mobile-controls');
+  }
+
+  _InitGamepadController() {
+    console.log('🎮 Initialisation du contrôleur de manettes');
+    
+    // Créer l'entité pour le contrôleur de manettes
+    const gamepadEntity = new entity.Entity();
+    gamepadEntity.AddComponent(new gamepad_controller.GamepadController());
+    this._entityManager.Add(gamepadEntity, 'gamepad-controller');
   }
 
   _LoadSky() {
