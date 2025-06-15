@@ -13,7 +13,7 @@ const game_config = (() => {
       
       // Progression par niveau
       healthPerLevel: 20,        // +20 HP par niveau
-      statPointsPerLevel: 10,    // 10 points à répartir par niveau
+      statPointsPerLevel: 1,     // 1 point à répartir par niveau
       
       // Bonus par point d'amélioration
       damagePerPoint: 5,         // +5 dégâts par point investi
@@ -31,9 +31,9 @@ const game_config = (() => {
     
     // === CONFIGURATION DES ENNEMIS ===
     enemies: {
-      // Les ennemis sont 50% plus faibles que le joueur
+      // Les ennemis sont plus résistants pour augmenter la difficulté
       damageReductionFactor: 0.5,  // Ennemis font 50% des dégâts du joueur
-      healthReductionFactor: 0.7,  // Ennemis ont 70% de la vie du joueur
+      healthReductionFactor: 2.1,  // Ennemis ont 210% de la vie du joueur (3x plus résistants)
       
       // Bonus par type d'ennemi
       types: {
