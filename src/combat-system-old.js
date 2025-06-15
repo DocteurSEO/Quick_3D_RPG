@@ -21,16 +21,9 @@ export const combat_system = (() => {
       this._cameraTransitionProgress = 0;
       this._isTransitioning = false;
       
-      // Utilisation de la base de données externalisée
-      this._quizDatabase = quiz_database.getAllQuestions();
-      
-      // Fonction de debug globale pour tester les niveaux
-      window._DEBUG_COMBAT = {
-        setLevel: (level) => this._DebugSetLevel(level),
-        addXP: (amount) => this._DebugAddXP(amount),
-        getStats: () => this._DebugGetStats(),
-        loadLevel: (level) => this._DebugLoadLevel(level)
-      };
+      // Base de données de quiz (sera chargée de manière asynchrone)
+      this._quizDatabase = [];
+      this._quizDatabaseLoaded = false;
       
       // Camera animation properties
       this._cameraAngles = [
@@ -70,11 +63,11 @@ export const combat_system = (() => {
     async InitComponent() {
       console.log('✅ CombatSystem initialized');
       
+      // Charger la base de données de quiz de manière asynchrone
+      await this._LoadQuizDatabase();
+      
       // Initialiser le système d'audio spatial
       this._spatialAudio = new spatial_audio_system.SpatialAudioSystem();
-      
-      // Initialiser le système de questions dynamiques
-      await this._InitializeDynamicQuestions();
       
       // Initialiser le contrôle audio
       setTimeout(() => {
@@ -87,22 +80,34 @@ export const combat_system = (() => {
       this._RegisterHandler('combat.end', (m) => { this._EndCombat(m); });
     }
 
-    async _InitializeDynamicQuestions() {
-      console.log('🔧 Initialisation du système de questions dynamiques...');
-      
+    async _LoadQuizDatabase() {
       try {
-        // Synchroniser le niveau du quiz avec le niveau du joueur
-        quiz_database.setCurrentLevel(this._playerLevel);
+        console.log('🔄 Chargement de la base de données de quiz...');
+        console.log(`📍 Niveau actuel: ${quiz_database.getCurrentLevel()}`);
+        this._quizDatabase = await quiz_database.getAllQuestions();
+        this._quizDatabaseLoaded = true;
+        console.log(`✅ Base de données chargée: ${this._quizDatabase.length} questions`);
         
-        // Charger les questions pour le niveau actuel
-        this._quizDatabase = await quiz_database.loadQuestionsForLevel(this._playerLevel);
-        
-        console.log(`✅ Questions chargées pour le niveau ${this._playerLevel}: ${this._quizDatabase.length} questions`);
+        // Log des catégories disponibles
+        const categories = {};
+        this._quizDatabase.forEach(q => {
+          categories[q.category] = (categories[q.category] || 0) + 1;
+        });
+        console.log('📊 Catégories disponibles:', categories);
       } catch (error) {
-        console.warn('⚠️ Erreur lors du chargement initial des questions:', error);
-        // Fallback sur les questions par défaut
-        this._quizDatabase = quiz_database.getAllQuestions();
+        console.error('❌ Erreur lors du chargement de la base de données:', error);
+        this._quizDatabase = [];
+        this._quizDatabaseLoaded = false;
       }
+    }
+
+    async changeLevel(newLevel) {
+      console.log(`🎯 Changement de niveau: ${newLevel}`);
+      quiz_database.setCurrentLevel(newLevel);
+      // Recharger la base de données pour le nouveau niveau
+      await this._LoadQuizDatabase();
+      // Réinitialiser les questions utilisées
+      this._usedQuestions.clear();
     }
 
     _UpdateSpatialAudio() {
@@ -448,7 +453,12 @@ export const combat_system = (() => {
         this._playerTurn = false;
         this._isAnimating = false;
         this._ChangeCameraAngle();
-        this._LoadRandomQuiz();
+        const quiz = this._LoadRandomQuiz();
+        if (!quiz) {
+          console.error('❌ Impossible de charger un quiz pour le tour suivant');
+          this._EndCombat({ playerWon: false });
+          return;
+        }
         this._StartRobotTurn();
       }, 2000);
     }
@@ -492,7 +502,12 @@ export const combat_system = (() => {
         this._playerTurn = false;
         this._isAnimating = false;
         this._ChangeCameraAngle();
-        this._LoadRandomQuiz();
+        const quiz = this._LoadRandomQuiz();
+        if (!quiz) {
+          console.error('❌ Impossible de charger un quiz pour le tour suivant');
+          this._EndCombat({ playerWon: false });
+          return;
+        }
         this._StartRobotTurn();
       }, 2000);
     }
@@ -657,7 +672,12 @@ export const combat_system = (() => {
       
       // Load first quiz after a short delay to ensure UI is ready
       setTimeout(() => {
-        this._LoadRandomQuiz();
+        const quiz = this._LoadRandomQuiz();
+        if (!quiz) {
+          console.error('❌ Impossible de charger un quiz - abandon du combat');
+          this._EndCombat({ playerWon: false });
+          return;
+        }
         this._AddCombatLog('Combat commencé !');
         
         // Arrêter l'audio d'ambiance pendant le combat
@@ -980,7 +1000,12 @@ export const combat_system = (() => {
             this._ChangeCameraAngle();
             
             // Load new question for next turn
-            this._LoadRandomQuiz();
+            const quiz = this._LoadRandomQuiz();
+            if (!quiz) {
+              console.error('❌ Impossible de charger un quiz pour le tour suivant');
+              this._EndCombat({ playerWon: false });
+              return;
+            }
             
             this._StartRobotTurn();
           }
@@ -1405,7 +1430,7 @@ export const combat_system = (() => {
       }, 2000);
     }
 
-    async _LevelUp() {
+    _LevelUp() {
       // Calculate remaining XP after level up
       const remainingXP = this._playerXP - this._playerXPToNextLevel;
       
@@ -1428,9 +1453,6 @@ export const combat_system = (() => {
       this._availableUpgradePoints += GameConfig.player.statPointsPerLevel;
       this._pendingLevelUp = true;
       
-      // 🆕 CHARGER LES NOUVELLES QUESTIONS POUR LE NOUVEAU NIVEAU
-      await this._LoadQuestionsForNewLevel();
-      
       // Show level up notification with upgrade choice
       this._ShowLevelUpNotification();
       
@@ -1449,143 +1471,6 @@ export const combat_system = (() => {
       // Check if there's still enough XP for another level
       if (this._playerXP >= this._playerXPToNextLevel) {
         setTimeout(() => this._LevelUp(), 1000); // Delay for effect
-      }
-    }
-
-    async _LoadQuestionsForNewLevel() {
-      console.log(`🔄 Chargement des questions pour le nouveau niveau ${this._playerLevel}...`);
-      
-      try {
-        // Synchroniser le niveau du quiz
-        quiz_database.setCurrentLevel(this._playerLevel);
-        
-        // Charger les nouvelles questions
-        const newQuestions = await quiz_database.loadQuestionsForLevel(this._playerLevel);
-        
-        // Mettre à jour la base de données locale
-        this._quizDatabase = newQuestions;
-        
-        // Réinitialiser les questions utilisées pour ce nouveau niveau
-        this._usedQuestions.clear();
-        
-        console.log(`✅ Questions niveau ${this._playerLevel} chargées: ${newQuestions.length} questions disponibles`);
-        
-        // Afficher une notification sur les nouvelles questions
-        this._ShowNewQuestionsNotification(newQuestions.length);
-        
-      } catch (error) {
-        console.warn(`⚠️ Erreur lors du chargement des questions niveau ${this._playerLevel}:`, error);
-        console.log('🔄 Conservation des questions actuelles...');
-        
-        // En cas d'erreur, on garde les questions actuelles
-        // Pas de changement à this._quizDatabase
-      }
-    }
-
-    _ShowNewQuestionsNotification(questionsCount) {
-      // Créer une notification pour informer des nouvelles questions
-      const notification = document.createElement('div');
-      notification.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 20px 30px;
-        border-radius: 15px;
-        font-size: 16px;
-        font-weight: bold;
-        text-align: center;
-        z-index: 10000;
-        box-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
-        animation: slideInFromTop 0.5s ease-out;
-      `;
-      
-      notification.innerHTML = `
-        <div>🎯 NOUVEAU NIVEAU DE DIFFICULTÉ !</div>
-        <div style="font-size: 14px; margin-top: 8px; opacity: 0.9;">
-          ${questionsCount} nouvelles questions niveau ${this._playerLevel}
-        </div>
-      `;
-      
-      document.body.appendChild(notification);
-      
-      // Ajouter l'animation si elle n'existe pas
-      if (!document.querySelector('#newQuestionsAnimation')) {
-        const style = document.createElement('style');
-        style.id = 'newQuestionsAnimation';
-        style.textContent = `
-          @keyframes slideInFromTop {
-            0% { 
-              transform: translate(-50%, -150%); 
-              opacity: 0; 
-            }
-            100% { 
-              transform: translate(-50%, -50%); 
-              opacity: 1; 
-            }
-          }
-        `;
-        document.head.appendChild(style);
-      }
-      
-      // Supprimer la notification après 3 secondes
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.style.animation = 'slideInFromTop 0.5s ease-out reverse';
-          setTimeout(() => {
-            notification.parentNode.removeChild(notification);
-          }, 500);
-        }
-      }, 3000);
-    }
-
-    // ===== FONCTIONS DE DEBUG =====
-    async _DebugSetLevel(level) {
-      console.log(`🐛 DEBUG: Forcer le niveau à ${level}`);
-      this._playerLevel = level;
-      this._playerXPToNextLevel = GameConfig.formulas.xpToNextLevel(level);
-      this._playerMaxHealth = GameConfig.formulas.playerMaxHealth(level);
-      this._playerHealth = this._playerMaxHealth;
-      
-      await this._LoadQuestionsForNewLevel();
-      this._UpdateXPDisplay();
-      this._UpdateHealthBars();
-      return `Niveau forcé à ${level}`;
-    }
-    
-    _DebugAddXP(amount) {
-      console.log(`🐛 DEBUG: Ajouter ${amount} XP`);
-      this._AwardXP(amount);
-      return `${amount} XP ajoutés`;
-    }
-    
-    _DebugGetStats() {
-      const stats = {
-        playerLevel: this._playerLevel,
-        playerXP: this._playerXP,
-        playerXPToNext: this._playerXPToNextLevel,
-        playerHealth: this._playerHealth,
-        playerMaxHealth: this._playerMaxHealth,
-        quizLevel: quiz_database.getCurrentLevel(),
-        questionsCount: this._quizDatabase.length,
-        usedQuestions: this._usedQuestions.size
-      };
-      console.log('🐛 DEBUG Stats:', stats);
-      return stats;
-    }
-    
-    async _DebugLoadLevel(level) {
-      console.log(`🐛 DEBUG: Tester le chargement niveau ${level}`);
-      try {
-        quiz_database.setCurrentLevel(level);
-        const questions = await quiz_database.loadQuestionsForLevel(level);
-        console.log(`✅ Niveau ${level}: ${questions.length} questions chargées`);
-        return { success: true, level, questionsCount: questions.length };
-      } catch (error) {
-        console.error(`❌ Erreur niveau ${level}:`, error);
-        return { success: false, level, error: error.message };
       }
     }
 
@@ -2054,7 +1939,12 @@ export const combat_system = (() => {
              this._playerTurn = true;
              this._isAnimating = false;
              this._ShowActionMenu();
-             this._LoadRandomQuiz(); // Load completely new quiz for next turn
+             const quiz = this._LoadRandomQuiz(); // Load completely new quiz for next turn
+             if (!quiz) {
+               console.error('❌ Impossible de charger un quiz pour le tour suivant');
+               this._EndCombat({ playerWon: false });
+               return;
+             }
           }
         }, 2000);
       }, 500);
@@ -2321,6 +2211,12 @@ export const combat_system = (() => {
     }
     
     _LoadRandomQuiz() {
+      // Vérifier que la base de données est chargée
+      if (!this._quizDatabaseLoaded || !Array.isArray(this._quizDatabase) || this._quizDatabase.length === 0) {
+        console.warn('⚠️ Base de données de quiz non chargée ou vide');
+        return null;
+      }
+      
       // Get unused questions
       const availableQuestions = this._quizDatabase.filter((_, index) => !this._usedQuestions.has(index));
       
@@ -2753,7 +2649,12 @@ export const combat_system = (() => {
         this._ChangeCameraAngle();
         
         // Load new question for next turn
-        this._LoadRandomQuiz();
+        const quiz = this._LoadRandomQuiz();
+        if (!quiz) {
+          console.error('❌ Impossible de charger un quiz pour le tour suivant');
+          this._EndCombat({ playerWon: false });
+          return;
+        }
         
         // Robot automatically chooses quiz
         this._StartRobotTurn();

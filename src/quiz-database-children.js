@@ -1,10 +1,15 @@
-// Remplacement de quiz-database.js pour les enfants
+// Remplacement de quiz-database-children.js pour les enfants
 // Garde la même interface mais avec des questions d'enfants
 
 export const quiz_database = (() => {
   
-  // Questions pour enfants - remplace complètement l'ancien système
-  const childrenQuestions = [
+  // Système de niveau dynamique
+  let currentLevel = 1;
+  let loadedQuestions = [];
+  let questionsLoaded = false;
+  
+  // Questions par défaut (fallback) si le chargement échoue
+  const defaultChildrenQuestions = [
     // Mathématiques simples
     {
       question: "Combien font 1 + 1 ?",
@@ -138,10 +143,53 @@ export const quiz_database = (() => {
     }
   ];
   
+  // Fonction pour charger les questions du niveau actuel
+  const loadQuestionsForLevel = async (level) => {
+    try {
+      console.log(`🔄 Chargement des questions niveau ${level}...`);
+      
+      // Import dynamique du fichier du niveau
+      const moduleUrl = `/questions/children/niveau${level}/questions.js`;
+      const module = await import(moduleUrl);
+      
+      // Le module peut exporter soit children_niveau{X}_questions soit default
+      const questions = module[`children_niveau${level}_questions`] || module.default;
+      
+      if (!questions || !Array.isArray(questions)) {
+        throw new Error(`Questions invalides pour le niveau ${level}`);
+      }
+      
+      loadedQuestions = questions;
+      questionsLoaded = true;
+      console.log(`✅ ${questions.length} questions chargées pour le niveau ${level}`);
+      
+      return questions;
+    } catch (error) {
+      console.warn(`⚠️ Erreur lors du chargement niveau ${level}:`, error);
+      console.log('🔄 Utilisation des questions par défaut...');
+      
+      // Fallback sur les questions par défaut
+      loadedQuestions = defaultChildrenQuestions;
+      questionsLoaded = true;
+      return defaultChildrenQuestions;
+    }
+  };
+  
+  // Fonction pour obtenir les questions (charge si nécessaire)
+  const getQuestions = () => {
+    if (questionsLoaded) {
+      return loadedQuestions;
+    } else {
+      // Retour synchrone des questions par défaut si pas encore chargé
+      console.log('⚠️ Questions pas encore chargées, utilisation du cache par défaut');
+      return defaultChildrenQuestions;
+    }
+  };
+  
   // Interface compatible avec l'ancien système
   const getAllQuestions = () => {
-    console.log('📚 getAllQuestions() appelé - retourne questions enfants');
-    return childrenQuestions;
+    console.log('📚 getAllQuestions() appelé');
+    return getQuestions();
   };
   
   const getQuestionsByCategory = (category) => {
@@ -153,15 +201,17 @@ export const quiz_database = (() => {
       return [];
     }
     
-    const filtered = childrenQuestions.filter(q => q.category === category);
+    const questions = getQuestions();
+    const filtered = questions.filter(q => q.category === category);
     console.log(`✅ ${filtered.length} questions trouvées pour catégorie ${category}`);
     return filtered;
   };
   
   const getRandomQuestion = (excludeQuestions = []) => {
     console.log('🎲 getRandomQuestion() appelé');
-    const available = childrenQuestions.filter(q => !excludeQuestions.includes(q));
-    if (available.length === 0) return childrenQuestions[0];
+    const questions = getQuestions();
+    const available = questions.filter(q => !excludeQuestions.includes(q));
+    if (available.length === 0) return questions[0];
     return available[Math.floor(Math.random() * available.length)];
   };
   
@@ -179,29 +229,42 @@ export const quiz_database = (() => {
     return available[Math.floor(Math.random() * available.length)];
   };
   
-  // Interface publique identique à l'ancien système
+  // Interface publique avec nouvelles fonctions de niveau
   return {
     getAllQuestions,
     getQuestionsByCategory,
     getRandomQuestion,
     getRandomQuestionByCategory,
     
+    // NOUVELLES FONCTIONS POUR LE SYSTÈME DE NIVEAU
+    loadQuestionsForLevel,
+    getCurrentLevel: () => currentLevel,
+    setCurrentLevel: (level) => {
+      console.log(`🎯 Niveau changé de ${currentLevel} à ${level}`);
+      currentLevel = level;
+      questionsLoaded = false; // Force le rechargement
+    },
+    
     // Catégories pour enfants (pas de code)
     categories: {
       MATH: 'math',
       GENERAL: 'general',
-      GEEK: 'geek'  // Pas de CODE
+      GEEK: 'geek',
+      NATURE: 'nature'  // Nouvelle catégorie
     },
     
     // Statistiques
     getStats: () => {
+      const questions = getQuestions();
       const stats = {};
-      childrenQuestions.forEach(q => {
+      questions.forEach(q => {
         stats[q.category] = (stats[q.category] || 0) + 1;
       });
       return {
-        total: childrenQuestions.length,
-        byCategory: stats
+        total: questions.length,
+        byCategory: stats,
+        currentLevel: currentLevel,
+        questionsLoaded: questionsLoaded
       };
     }
   };

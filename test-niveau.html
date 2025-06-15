@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Système de Niveaux</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        button { padding: 10px; margin: 5px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #45a049; }
+        .result { margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 3px; }
+        .error { background: #ffcccc; }
+        .success { background: #ccffcc; }
+    </style>
+</head>
+<body>
+    <h1>🎮 Test du Système de Niveaux Dynamique</h1>
+    
+    <div class="test-section">
+        <h2>🎯 Changement de Niveau</h2>
+        <button onclick="testLevel(1)">Niveau 1</button>
+        <button onclick="testLevel(5)">Niveau 5</button>
+        <button onclick="testLevel(10)">Niveau 10</button>
+        <button onclick="testLevel(99)">Niveau 99 (erreur)</button>
+        <div id="level-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>📊 Statistiques</h2>
+        <button onclick="showStats()">Afficher Stats</button>
+        <div id="stats-result" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🎲 Questions Aléatoires</h2>
+        <button onclick="getRandomQuestion()">Question Aléatoire</button>
+        <button onclick="getRandomMath()">Question Math</button>
+        <div id="question-result" class="result"></div>
+    </div>
+
+    <script type="module">
+        import { quiz_database } from './src/quiz-database-children.js';
+        
+        window.quiz_database = quiz_database;
+        
+        window.testLevel = async (level) => {
+            const result = document.getElementById('level-result');
+            result.innerHTML = `🔄 Chargement niveau ${level}...`;
+            
+            try {
+                // Changer le niveau
+                quiz_database.setCurrentLevel(level);
+                
+                // Charger les questions
+                const questions = await quiz_database.loadQuestionsForLevel(level);
+                
+                result.innerHTML = `
+                    <div class="success">
+                        ✅ <strong>Niveau ${level} chargé avec succès!</strong><br>
+                        📝 ${questions.length} questions trouvées<br>
+                        🎯 Niveau actuel: ${quiz_database.getCurrentLevel()}
+                    </div>
+                `;
+                
+                // Afficher quelques questions d'exemple
+                if (questions.length > 0) {
+                    const example = questions[0];
+                    result.innerHTML += `
+                        <div style="margin-top: 10px; padding: 10px; background: #e8f4f8; border-radius: 3px;">
+                            <strong>Exemple de question:</strong><br>
+                            ${example.question}<br>
+                            <small>Catégorie: ${example.category} | Difficulté: ${example.difficulty || 'N/A'}</small>
+                        </div>
+                    `;
+                }
+                
+            } catch (error) {
+                result.innerHTML = `
+                    <div class="error">
+                        ❌ <strong>Erreur niveau ${level}:</strong><br>
+                        ${error.message}
+                    </div>
+                `;
+            }
+        };
+        
+        window.showStats = () => {
+            const stats = quiz_database.getStats();
+            const result = document.getElementById('stats-result');
+            
+            result.innerHTML = `
+                <div class="success">
+                    📊 <strong>Statistiques actuelles:</strong><br>
+                    🎯 Niveau: ${stats.currentLevel}<br>
+                    📝 Total questions: ${stats.total}<br>
+                    📦 Questions chargées: ${stats.questionsLoaded ? 'Oui' : 'Non'}<br>
+                    📂 Par catégorie: ${JSON.stringify(stats.byCategory, null, 2)}
+                </div>
+            `;
+        };
+        
+        window.getRandomQuestion = () => {
+            const question = quiz_database.getRandomQuestion();
+            const result = document.getElementById('question-result');
+            
+            if (question) {
+                result.innerHTML = `
+                    <div class="success">
+                        <strong>Question aléatoire:</strong><br>
+                        ${question.question}<br>
+                        <strong>Options:</strong> ${question.options.join(', ')}<br>
+                        <small>Réponse correcte: ${question.options[question.correct]} (index ${question.correct})</small><br>
+                        <small>Catégorie: ${question.category}</small>
+                    </div>
+                `;
+            } else {
+                result.innerHTML = '<div class="error">❌ Aucune question trouvée</div>';
+            }
+        };
+        
+        window.getRandomMath = () => {
+            const question = quiz_database.getRandomQuestionByCategory('math');
+            const result = document.getElementById('question-result');
+            
+            if (question) {
+                result.innerHTML = `
+                    <div class="success">
+                        <strong>Question Math:</strong><br>
+                        ${question.question}<br>
+                        <strong>Options:</strong> ${question.options.join(', ')}<br>
+                        <small>Réponse correcte: ${question.options[question.correct]} (index ${question.correct})</small>
+                    </div>
+                `;
+            } else {
+                result.innerHTML = '<div class="error">❌ Aucune question math trouvée</div>';
+            }
+        };
+        
+        // Test initial
+        console.log('🎮 Système de test chargé');
+        showStats();
+    </script>
+</body>
+</html>
