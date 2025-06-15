@@ -19,6 +19,14 @@ import {inventory_controller} from './inventory-controller.js';
 import {equip_weapon_component} from './equip-weapon-component.js';
 import {attack_controller} from './attacker-controller.js';
 import {combat_system} from './combat-system.js';
+import {mode_selector} from './mode-selector.js';
+import {combat_system_adapter} from './combat-system-adapter.js';
+import {combat_system_patch} from './combat-system-patch.js';
+import {game_modes_config} from './game-modes-config.js';
+import {audio_helper} from './audio-helper.js';
+import {combat_system_simple_fix} from './combat-system-simple-fix.js';
+import {mobile_controls} from './mobile-controls.js';
+import {quiz_database_replacer} from './quiz-database-replacer.js';
 
 
 const _VS = `
@@ -113,6 +121,7 @@ class HackNSlashDemo {
         [[-1000, -1000], [1000, 1000]], [100, 100]);
 
     this._LoadControllers();
+    this._InitializeModeSystem();
     this._LoadPlayer();
     this._LoadFoliage();
     this._LoadClouds();
@@ -124,6 +133,96 @@ class HackNSlashDemo {
 
   _LoadControllers() {
     // Combat system will be loaded after player
+  }
+
+  _InitializeModeSystem() {
+    console.log('🎮 Initialisation du système de modes de jeu');
+    
+    // Initialiser le mode par défaut (enfant)
+    const { GameModesConfig } = game_modes_config;
+    console.log(`📚 Mode par défaut: ${GameModesConfig.currentMode}`);
+    
+    // Créer le sélecteur de mode
+    const modeEntity = new entity.Entity();
+    modeEntity.AddComponent(new mode_selector.ModeSelector());
+    this._entityManager.Add(modeEntity, 'mode-selector');
+    
+    // Initialiser l'adaptateur de système de combat
+    combat_system_adapter.init();
+    
+    // Appliquer le patch pour remplacer quiz_database
+    combat_system_patch.applyPatch();
+    
+    // Initialiser l'audio helper
+    audio_helper.init();
+    audio_helper.setMode('children');
+    
+    // Appliquer la correction simple et directe
+    combat_system_simple_fix.applyFix();
+    
+    // Ajouter les contrôles mobiles
+    this._InitMobileControls();
+    
+    // Forcer l'application du mode enfant par défaut
+    this._ApplyChildrenModeOnStartup();
+  }
+
+  _ApplyChildrenModeOnStartup() {
+    console.log('🧒 Application du mode enfant au démarrage');
+    
+    // Attendre que le DOM soit prêt et appliquer les modifications
+    setTimeout(() => {
+      // Masquer les éléments de code immédiatement
+      const codeElements = [
+        '.menu-option[data-action="code"]',
+        '.code-interface',
+        '#code-container',
+        '.programming-section',
+        '[data-code-related="true"]'
+      ];
+      
+      codeElements.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(element => {
+          element.style.display = 'none';
+          element.setAttribute('data-hidden-mode', 'children');
+          console.log(`🚫 Élément masqué: ${selector}`);
+        });
+      });
+      
+      // Masquer spécifiquement l'option CODE du menu de combat
+      setTimeout(() => {
+        const codeMenuOptions = document.querySelectorAll('.menu-option');
+        codeMenuOptions.forEach(option => {
+          const text = option.textContent || option.innerText || '';
+          if (text.includes('CODE') || text.includes('code')) {
+            option.style.display = 'none';
+            option.setAttribute('data-hidden-mode', 'children');
+            console.log(`🚫 Option CODE masquée du menu`);
+          }
+        });
+      }, 1000);
+      
+      // Ajouter la classe de mode enfant au body
+      document.body.classList.add('mode-children');
+      document.body.classList.remove('mode-adults');
+      
+      // Déclencher l'événement de changement de mode
+      document.dispatchEvent(new CustomEvent('mode-changed', {
+        detail: { mode: 'children' }
+      }));
+      
+      console.log('✅ Mode enfant appliqué avec succès');
+    }, 100);
+  }
+
+  _InitMobileControls() {
+    console.log('📱 Initialisation des contrôles mobiles');
+    
+    // Créer l'entité pour les contrôles mobiles
+    const mobileControlsEntity = new entity.Entity();
+    mobileControlsEntity.AddComponent(new mobile_controls.MobileControls());
+    this._entityManager.Add(mobileControlsEntity, 'mobile-controls');
   }
 
   _LoadSky() {

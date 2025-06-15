@@ -1,0 +1,41 @@
+/* Styles minimalistes pour le mode enfant - PAS DE FOND */
+
+/* Masquer SEULEMENT les éléments de code spécifiques */
+body.mode-children .menu-option[data-action="code"],
+body.mode-children .code-interface,
+body.mode-children .code-container,
+body.mode-children #code-container,
+body.mode-children .code-editor,
+body.mode-children #code-input,
+body.mode-children .code-actions,
+body.mode-children .code-hints,
+body.mode-children [data-code-question],
+body.mode-children [data-hidden-by-children-mode="true"] {
+  display: none !important;
+}
+
+/* Style léger pour les questions en mode enfant */
+body.mode-children .quiz-question {
+  font-size: 1.2em;
+  color: #2c3e50;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* Style léger pour les options */
+body.mode-children .quiz-option {
+  font-size: 1.1em;
+  margin: 5px 0;
+  padding: 10px 15px;
+}
+
+/* Assurer que les barres de vie restent en haut */
+body.mode-children .health-overlay {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  gap: 20px;
+}

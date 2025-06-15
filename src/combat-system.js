@@ -1,6 +1,7 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.118.1/build/three.module.js';
 import {entity} from './entity.js';
 import {game_config} from './game-config.js';
+import {quiz_database} from './quiz-database-children.js';
 
 export const combat_system = (() => {
   const {GameConfig} = game_config;
@@ -19,68 +20,8 @@ export const combat_system = (() => {
       this._cameraTransitionProgress = 0;
       this._isTransitioning = false;
       
-      this._quizDatabase = [
-        {
-          question: "What is 2 + 2?",
-          options: ["3", "4", "5", "6"],
-          correct: 1
-        },
-        {
-          question: "What is the capital of France?",
-          options: ["London", "Berlin", "Paris", "Madrid"],
-          correct: 2
-        },
-        {
-          question: "What is 5 * 3?",
-          options: ["13", "15", "18", "20"],
-          correct: 1
-        },
-        {
-          question: "Which planet is closest to the Sun?",
-          options: ["Venus", "Mercury", "Earth", "Mars"],
-          correct: 1
-        },
-        {
-          question: "What is 100 / 4?",
-          options: ["20", "25", "30", "35"],
-          correct: 1
-        },
-        {
-          question: "What is the square root of 64?",
-          options: ["6", "7", "8", "9"],
-          correct: 2
-        },
-        {
-          question: "Which programming language is known for web development?",
-          options: ["Python", "JavaScript", "C++", "Java"],
-          correct: 1
-        },
-        {
-          question: "What is 15 - 7?",
-          options: ["6", "7", "8", "9"],
-          correct: 2
-        },
-        {
-          question: "Which is the largest ocean?",
-          options: ["Atlantic", "Indian", "Arctic", "Pacific"],
-          correct: 3
-        },
-        {
-          question: "What is 3 × 7?",
-          options: ["19", "20", "21", "22"],
-          correct: 2
-        },
-        {
-          question: "What does HTML stand for?",
-          options: ["Hypertext Markup Language", "Home Tool Markup Language", "Hyperlinks and Text Markup Language", "Hypermedia Text Markup Language"],
-          correct: 0
-        },
-        {
-          question: "What is 50 ÷ 5?",
-          options: ["8", "9", "10", "11"],
-          correct: 2
-        }
-      ];
+      // Utilisation de la base de données externalisée
+      this._quizDatabase = quiz_database.getAllQuestions();
       
       // Camera animation properties
       this._cameraAngles = [
@@ -303,12 +244,293 @@ export const combat_system = (() => {
           this._ShowQuizSection();
           break;
         case 'code':
-          this._AddCombatLog('Code action not implemented yet!');
+          this._HandleCodeAction();
           break;
         case 'heal':
           this._HandleHealAction();
           break;
       }
+    }
+
+    _HandleCodeAction() {
+      if (!this._playerTurn || this._isAnimating || !this._isInCombat) {
+        console.log('🚫 Code action ignored - not player turn or animating');
+        return;
+      }
+      
+      console.log('💻 Player uses code action - Super Attack!');
+      this._isAnimating = true;
+      
+      // Charger une question de code
+      const codeQuestions = quiz_database.getQuestionsByCategory('code');
+      if (codeQuestions.length === 0) {
+        this._AddCombatLog('❌ Aucune question de code disponible!');
+        this._isAnimating = false;
+        return;
+      }
+      
+      const codeQuestion = codeQuestions[Math.floor(Math.random() * codeQuestions.length)];
+      this._currentCodeQuestion = codeQuestion;
+      
+      // Afficher l'interface de code
+      this._ShowCodeInterface(codeQuestion);
+    }
+
+    _ShowCodeInterface(question) {
+      // Créer l'interface de code avec textarea et timer
+      const codeContainer = document.createElement('div');
+      codeContainer.id = 'code-container';
+      codeContainer.className = 'code-interface';
+      codeContainer.innerHTML = `
+        <div class="code-header">
+          <h3>💻 SUPER ATTAQUE - DÉFI CODE</h3>
+          <div class="timer" id="code-timer">60</div>
+        </div>
+        <div class="code-question">
+          <p>${question.question}</p>
+        </div>
+        <textarea id="code-input" placeholder="Écrivez votre code ici..." rows="8"></textarea>
+        <div class="code-actions">
+          <button onclick="window.combatSystemInstance._SubmitCode()">Exécuter</button>
+          <button onclick="window.combatSystemInstance._CancelCode()">Annuler</button>
+        </div>
+        <div class="code-hints">
+          <details>
+            <summary>💡 Indices</summary>
+            <ul>
+              ${question.hints.map(hint => `<li>${hint}</li>`).join('')}
+            </ul>
+          </details>
+        </div>
+      `;
+      
+      document.body.appendChild(codeContainer);
+      
+      // Exposer l'instance pour les boutons
+      window.combatSystemInstance = this;
+      
+      // Ajouter la lecture vocale de la question de code
+      this._speakQuestion(`Défi code: ${question.question}`);
+      
+      // Démarrer le timer de 1 minute
+      this._startCodeTimer();
+      
+      // Focus sur le textarea
+      document.getElementById('code-input').focus();
+    }
+
+    _startCodeTimer() {
+      let timeLeft = 60;
+      const timerElement = document.getElementById('code-timer');
+      
+      this._codeTimer = setInterval(() => {
+        timeLeft--;
+        timerElement.textContent = timeLeft;
+        
+        if (timeLeft <= 10) {
+          timerElement.style.color = '#ff4444';
+          timerElement.style.animation = 'pulse 1s infinite';
+        }
+        
+        if (timeLeft <= 0) {
+          this._TimeoutCode();
+        }
+      }, 1000);
+    }
+
+    _SubmitCode() {
+      const userCode = document.getElementById('code-input').value.trim();
+      const correctAnswer = this._currentCodeQuestion.correctAnswer;
+      
+      // Nettoyer le timer
+      clearInterval(this._codeTimer);
+      
+      // Supprimer l'interface
+      const codeContainer = document.getElementById('code-container');
+      if (codeContainer) {
+        codeContainer.remove();
+      }
+      
+      // Nettoyer la référence globale
+      if (window.combatSystemInstance === this) {
+        delete window.combatSystemInstance;
+      }
+      
+      // Vérifier la réponse (simple comparaison pour l'instant)
+      const isCorrect = this._CheckCodeAnswer(userCode, correctAnswer);
+      
+      if (isCorrect) {
+        // Super attaque réussie - 50% des dégâts à l'ennemi
+        const superDamage = Math.floor(this._currentMonster._health * 0.5);
+        this._currentMonster._health = Math.max(0, this._currentMonster._health - superDamage);
+        
+        this._AddCombatLogAnimated(`💥 SUPER ATTAQUE RÉUSSIE ! Vous infligez ${superDamage} dégâts critiques !`, 'critical');
+        this._ShowSuperAttackEffect();
+        
+        // Vérifier si le monstre est vaincu
+        if (this._currentMonster._health <= 0) {
+          setTimeout(() => {
+            this._EndCombat({
+              playerWon: true
+            });
+          }, 2000);
+          return;
+        }
+      } else {
+        this._AddCombatLogAnimated('❌ Code incorrect ! Votre attaque échoue.', 'error');
+      }
+      
+      // Mettre à jour les barres de vie
+      this._UpdateHealthBars();
+      
+      // Fin du tour du joueur
+      setTimeout(() => {
+        this._playerTurn = false;
+        this._isAnimating = false;
+        this._ChangeCameraAngle();
+        this._LoadRandomQuiz();
+        this._StartRobotTurn();
+      }, 2000);
+    }
+
+    _TimeoutCode() {
+      // Le joueur n'a pas répondu à temps - le robot retire des dégâts
+      clearInterval(this._codeTimer);
+      
+      // Supprimer l'interface
+      const codeContainer = document.getElementById('code-container');
+      if (codeContainer) {
+        codeContainer.remove();
+      }
+      
+      // Nettoyer la référence globale
+      if (window.combatSystemInstance === this) {
+        delete window.combatSystemInstance;
+      }
+      
+      // Le robot attaque automatiquement
+      const robotDamage = GameConfig.formulas.enemyDamage(this._playerLevel);
+      this._playerHealth = Math.max(0, this._playerHealth - robotDamage);
+      
+      this._AddCombatLogAnimated(`⏰ Temps écoulé ! Le robot vous attaque et inflige ${robotDamage} dégâts !`, 'damage');
+      
+      // Vérifier si le joueur est vaincu
+      if (this._playerHealth <= 0) {
+        setTimeout(() => {
+          this._EndCombat({
+            playerWon: false
+          });
+        }, 2000);
+        return;
+      }
+      
+      // Mettre à jour les barres de vie
+      this._UpdateHealthBars();
+      
+      // Fin du tour du joueur
+      setTimeout(() => {
+        this._playerTurn = false;
+        this._isAnimating = false;
+        this._ChangeCameraAngle();
+        this._LoadRandomQuiz();
+        this._StartRobotTurn();
+      }, 2000);
+    }
+
+    _CheckCodeAnswer(userCode, correctAnswer) {
+      // Normaliser les réponses (supprimer espaces, points-virgules optionnels)
+      const normalizeCode = (code) => {
+        return code.replace(/\s+/g, ' ')
+                  .replace(/;\s*$/, '')
+                  .trim()
+                  .toLowerCase();
+      };
+      
+      const normalizedUser = normalizeCode(userCode);
+      const normalizedCorrect = normalizeCode(correctAnswer);
+      
+      return normalizedUser === normalizedCorrect;
+    }
+
+    _ShowSuperAttackEffect() {
+      // Effet visuel pour la super attaque
+      const effect = document.createElement('div');
+      effect.className = 'super-attack-effect';
+      effect.innerHTML = '💥 SUPER ATTAQUE ! 💥';
+      effect.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 48px;
+        font-weight: bold;
+        color: #ff6b35;
+        text-shadow: 0 0 20px #ff6b35, 0 0 40px #ff6b35;
+        z-index: 10000;
+        animation: superAttackPulse 3s ease-out;
+        pointer-events: none;
+      `;
+      
+      // Ajouter les styles d'animation si ils n'existent pas
+      if (!document.querySelector('#superAttackStyles')) {
+        const style = document.createElement('style');
+        style.id = 'superAttackStyles';
+        style.textContent = `
+          @keyframes superAttackPulse {
+            0% { 
+              transform: translate(-50%, -50%) scale(0.5);
+              opacity: 0;
+            }
+            20% { 
+              transform: translate(-50%, -50%) scale(1.2);
+              opacity: 1;
+            }
+            40% { 
+              transform: translate(-50%, -50%) scale(0.9);
+              opacity: 1;
+            }
+            60% { 
+              transform: translate(-50%, -50%) scale(1.1);
+              opacity: 1;
+            }
+            80% { 
+              transform: translate(-50%, -50%) scale(1);
+              opacity: 1;
+            }
+            100% { 
+              transform: translate(-50%, -50%) scale(1.2);
+              opacity: 0;
+            }
+          }
+        `;
+        document.head.appendChild(style);
+      }
+      
+      document.body.appendChild(effect);
+      
+      setTimeout(() => {
+        if (effect.parentNode) {
+          effect.remove();
+        }
+      }, 3000);
+    }
+
+    _CancelCode() {
+      // Annuler l'action de code
+      clearInterval(this._codeTimer);
+      
+      const codeContainer = document.getElementById('code-container');
+      if (codeContainer) {
+        codeContainer.remove();
+      }
+      
+      // Nettoyer la référence globale
+      if (window.combatSystemInstance === this) {
+        delete window.combatSystemInstance;
+      }
+      
+      this._isAnimating = false;
+      this._AddCombatLog('❌ Action de code annulée.');
     }
 
     _StartCombat(message) {
@@ -376,7 +598,7 @@ export const combat_system = (() => {
       // Load first quiz after a short delay to ensure UI is ready
       setTimeout(() => {
         this._LoadRandomQuiz();
-        this._AddCombatLog('Combat started!');
+        this._AddCombatLog('Combat commencé !');
         this._PlayCombatStartSound();
       }, 100);
     }
@@ -394,11 +616,11 @@ export const combat_system = (() => {
         this._PlayUISound('correct');
         const xpReward = this._CalculateXPReward();
         this._AwardXP(xpReward);
-        this._AddCombatLogAnimated(`🎉 Victory! You gained ${xpReward} XP!`, 'success');
+        this._AddCombatLogAnimated(`🎉 Victoire ! Vous avez gagné ${xpReward} XP !`, 'success');
         this._ShowVictoryEffect();
       } else {
         this._PlayUISound('incorrect');
-        this._AddCombatLogAnimated('💀 Defeat...', 'error');
+        this._AddCombatLogAnimated('💀 Défaite...', 'error');
         this._ShowDefeatEffect();
         
         // Respawn player at starting position
@@ -581,6 +803,9 @@ export const combat_system = (() => {
       this._selectedQuizIndex = 0;
       this._UpdateQuizSelection();
       
+      // Ajouter la lecture vocale de la question (adaptée aux enfants)
+      this._speakQuestionForChildren(this._currentQuiz);
+      
       console.log(`📝 Loaded new player quiz: ${this._currentQuiz.question}`);
     }
 
@@ -608,14 +833,19 @@ export const combat_system = (() => {
       options.forEach(option => option.disabled = true);
       
       // Animate selection
-      options[selectedIndex].style.transform = 'scale(1.1)';
+      if (options[selectedIndex]) {
+        options[selectedIndex].style.transform = 'scale(1.1)';
+      }
       
       setTimeout(() => {
         // Show correct/incorrect feedback
         if (selectedIndex === correct) {
           this._PlayUISound('correct');
-          options[selectedIndex].classList.add('correct');
-          this._AddCombatLogAnimated(`✅ Correct! You deal ${playerDamage} damage to the monster!`, 'success');
+          // Vérification de sécurité avant d'accéder aux éléments DOM
+          if (options[selectedIndex]) {
+            options[selectedIndex].classList.add('correct');
+          }
+          this._AddCombatLogAnimated(`✅ Correct ! Vous infligez ${playerDamage} dégâts au monstre !`, 'success');
           this._DamageMonster(playerDamage);
           this._ShakeScreen(false); // Victory shake
           
@@ -627,9 +857,14 @@ export const combat_system = (() => {
           this._PlayDamageSound(false);
         } else {
           this._PlayUISound('incorrect');
-          options[selectedIndex].classList.add('incorrect');
-          options[correct].classList.add('correct');
-          this._AddCombatLogAnimated(`❌ Wrong answer! The monster deals ${monsterDamage} damage to you!`, 'error');
+          // Vérifications de sécurité avant d'accéder aux éléments DOM
+          if (options[selectedIndex]) {
+            options[selectedIndex].classList.add('incorrect');
+          }
+          if (options[correct]) {
+            options[correct].classList.add('correct');
+          }
+          this._AddCombatLogAnimated(`❌ Mauvaise réponse ! Le monstre vous inflige ${monsterDamage} dégâts !`, 'error');
           this._DamagePlayer(monsterDamage);
           this._ShakeScreen(true); // Damage shake
           
@@ -651,12 +886,12 @@ export const combat_system = (() => {
           if (this._currentMonster && this._currentMonster._health <= 0) {
             // Kill the monster in the game world
             this._KillMonster();
-            console.log('Monster defeated, ending combat');
+            console.log('Monstre vaincu, fin du combat');
             this._EndCombat({
               playerWon: true
             });
           } else if (this._playerHealth <= 0) {
-            console.log('Player defeated, ending combat');
+            console.log('Joueur vaincu, fin du combat');
             this._EndCombat({
               playerWon: false
             });
@@ -1267,7 +1502,7 @@ export const combat_system = (() => {
     }
 
     _StartRobotTurn() {
-      console.log('🤖 Starting robot turn');
+      console.log('🤖 Début du tour du robot');
       
       // Show robot turn indicator
       this._ShowRobotTurnIndicator();
@@ -1434,16 +1669,25 @@ export const combat_system = (() => {
     }
 
     _LoadRobotQuiz() {
-      // Always load a completely new quiz for the robot (different from current player quiz AND previous robot quiz)
-      let robotQuizIndex;
+      // Robot only handles geek questions - use externalized database
+      const geekQuestions = quiz_database.getQuestionsByCategory('geek');
+      
+      if (geekQuestions.length === 0) {
+        console.warn('⚠️ No geek questions available for robot!');
+        return;
+      }
+      
+      // Select a random geek question (different from current player quiz AND previous robot quiz)
+      let robotQuiz;
       do {
-        robotQuizIndex = Math.floor(Math.random() * this._quizDatabase.length);
-      } while ((this._currentQuiz && this._quizDatabase[robotQuizIndex] === this._currentQuiz) || 
-               (this._robotQuiz && this._quizDatabase[robotQuizIndex] === this._robotQuiz));
+        const randomIndex = Math.floor(Math.random() * geekQuestions.length);
+        robotQuiz = geekQuestions[randomIndex];
+      } while ((this._currentQuiz && robotQuiz === this._currentQuiz) || 
+               (this._robotQuiz && robotQuiz === this._robotQuiz));
       
-      this._robotQuiz = this._quizDatabase[robotQuizIndex];
+      this._robotQuiz = robotQuiz;
       
-      console.log(`🤖 Loaded new robot quiz: ${this._robotQuiz.question}`);
+      console.log(`🤖 Loaded new robot geek quiz: ${this._robotQuiz.question}`);
       
       // Update UI to show robot's question with different styling
       this._ShowRobotQuizUI();
@@ -1465,11 +1709,14 @@ export const combat_system = (() => {
       // Update question text with animation
       const questionElement = document.getElementById('quiz-question');
       if (questionElement) {
-        questionElement.innerHTML = `🤖 Question du Robot: ${this._currentQuiz.question}`;
+        questionElement.innerHTML = `🤖 Question du Robot: ${this._robotQuiz.question}`;
         questionElement.style.color = '#e74c3c';
         questionElement.style.fontWeight = 'bold';
         questionElement.style.textShadow = '0 0 10px rgba(231, 76, 60, 0.5)';
         questionElement.style.animation = 'robotTextGlow 2s ease-in-out infinite alternate';
+        
+        // Ajouter la lecture vocale de la question du robot
+        this._speakQuestion(`Question du Robot: ${this._robotQuiz.question}`);
       }
       
       // Update options with robot styling and animations
@@ -1574,12 +1821,12 @@ export const combat_system = (() => {
         setTimeout(() => {
           if (this._currentMonster && this._currentMonster._health <= 0) {
             this._KillMonster();
-            console.log('Monster defeated by robot mistake, ending combat');
+            console.log('Monstre vaincu par erreur du robot, fin du combat');
             this._EndCombat({
               playerWon: true
             });
           } else if (this._playerHealth <= 0) {
-            console.log('Player defeated by robot, ending combat');
+            console.log('Joueur vaincu par le robot, fin du combat');
             this._EndCombat({
               playerWon: false
             });
@@ -1875,7 +2122,13 @@ export const combat_system = (() => {
       document.getElementById('quiz-question').textContent = this._currentQuiz.question;
       const options = document.querySelectorAll('.quiz-option');
       options.forEach((option, index) => {
-        option.textContent = this._currentQuiz.options[index];
+        // Vérification de sécurité pour éviter les erreurs
+        if (this._currentQuiz.options && this._currentQuiz.options[index] !== undefined) {
+          option.textContent = this._currentQuiz.options[index];
+        } else {
+          option.textContent = `Option ${index + 1}`; // Fallback
+          console.warn(`Option manquante à l'index ${index}`);
+        }
         option.classList.remove('correct', 'incorrect');
         option.disabled = false;
       });
@@ -2097,59 +2350,173 @@ export const combat_system = (() => {
     }
     
     _ShowHealEffect(healAmount) {
-      // Create floating heal text
-      const floatingText = document.createElement('div');
-      floatingText.textContent = `+${healAmount}`;
-      floatingText.style.cssText = `
-        position: fixed;
-        color: #27ae60;
-        font-size: 28px;
-        font-weight: bold;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-        pointer-events: none;
-        z-index: 9999;
-        animation: floatingHeal 2s ease-out forwards;
+      // Create firewall repair effect overlay
+      const repairOverlay = document.createElement('div');
+      repairOverlay.id = 'firewall-repair-overlay';
+      repairOverlay.innerHTML = `
+        <div class="repair-container">
+          <div class="firewall-icon">🛡️</div>
+          <div class="repair-text">RÉPARATION FIREWALL</div>
+          <div class="repair-progress">
+            <div class="progress-bar"></div>
+          </div>
+          <div class="repair-stats">
+            <div class="stat-line">🔧 DIAGNOSTIC SYSTÈME...</div>
+            <div class="stat-line">🔒 RENFORCEMENT SÉCURITÉ...</div>
+            <div class="stat-line">✅ INTÉGRITÉ RESTAURÉE +${healAmount}</div>
+          </div>
+          <div class="binary-stream">
+            <span>11010011</span>
+            <span>10110101</span>
+            <span>01101110</span>
+            <span>11001010</span>
+          </div>
+        </div>
       `;
       
-      // Position on player side
-      floatingText.style.left = '25%';
-      floatingText.style.top = '20%';
+      repairOverlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 50, 0, 0.9);
+        color: #00ff41;
+        font-family: 'Courier New', monospace;
+        z-index: 10000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        animation: repairFlash 2.5s ease-out;
+        pointer-events: none;
+      `;
       
-      // Add floating heal animation if not exists
-      if (!document.querySelector('#floatingHealStyles')) {
+      // Add repair effect styles if not exists
+      if (!document.querySelector('#repairEffectStyles')) {
         const style = document.createElement('style');
-        style.id = 'floatingHealStyles';
+        style.id = 'repairEffectStyles';
         style.textContent = `
-          @keyframes floatingHeal {
-            0% {
-              transform: translateY(0) scale(1);
-              opacity: 1;
-            }
-            50% {
-              transform: translateY(-30px) scale(1.2);
-              opacity: 1;
-            }
-            100% {
-              transform: translateY(-60px) scale(0.8);
-              opacity: 0;
-            }
+          @keyframes repairFlash {
+            0% { opacity: 0; }
+            15% { opacity: 1; background: rgba(0, 100, 0, 0.8); }
+            30% { opacity: 0.9; background: rgba(0, 255, 65, 0.3); }
+            60% { opacity: 1; background: rgba(0, 150, 0, 0.6); }
+            85% { opacity: 0.7; background: rgba(0, 255, 0, 0.2); }
+            100% { opacity: 0; }
           }
+          
+          .repair-container {
+            text-align: center;
+            max-width: 500px;
+            padding: 30px;
+            border: 2px solid #00ff41;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            box-shadow: 0 0 30px #00ff41;
+          }
+          
+          .firewall-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            animation: shieldPulse 0.5s ease-in-out infinite alternate;
+          }
+          
+          .repair-text {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-shadow: 0 0 15px #00ff41;
+            letter-spacing: 2px;
+          }
+          
+          .repair-progress {
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 255, 65, 0.2);
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+          }
+          
+          .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff41, #00cc33);
+            width: 0%;
+            animation: progressFill 2s ease-out;
+            box-shadow: 0 0 10px #00ff41;
+          }
+          
+          .repair-stats {
+            margin: 20px 0;
+          }
+          
+          .stat-line {
+            font-size: 14px;
+            margin: 8px 0;
+            opacity: 0;
+            animation: statAppear 0.5s ease-in forwards;
+          }
+          
+          .stat-line:nth-child(1) { animation-delay: 0.3s; }
+          .stat-line:nth-child(2) { animation-delay: 0.8s; }
+          .stat-line:nth-child(3) { animation-delay: 1.3s; color: #00ff41; font-weight: bold; }
+          
+          .binary-stream {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            font-size: 10px;
+            opacity: 0.6;
+            margin-top: 15px;
+          }
+          
+          .binary-stream span {
+            animation: binaryScroll 2s linear infinite;
+          }
+          
+          .binary-stream span:nth-child(1) { animation-delay: 0s; }
+          .binary-stream span:nth-child(2) { animation-delay: 0.3s; }
+          .binary-stream span:nth-child(3) { animation-delay: 0.6s; }
+          .binary-stream span:nth-child(4) { animation-delay: 0.9s; }
+          
+          @keyframes shieldPulse {
+            0% { transform: scale(1); filter: drop-shadow(0 0 5px #00ff41); }
+            100% { transform: scale(1.1); filter: drop-shadow(0 0 15px #00ff41); }
+          }
+          
+          @keyframes progressFill {
+            0% { width: 0%; }
+            100% { width: 100%; }
+          }
+          
+          @keyframes statAppear {
+            0% { opacity: 0; transform: translateX(-20px); }
+            100% { opacity: 1; transform: translateX(0); }
+          }
+          
+          @keyframes binaryScroll {
+            0% { transform: translateY(0); opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-10px); opacity: 0.3; }
+          }
+          
           .heal-log {
-            color: #27ae60 !important;
-            text-shadow: 0 0 10px rgba(39, 174, 96, 0.5);
+            color: #00ff41 !important;
+            background: rgba(0, 255, 65, 0.1) !important;
+            border-left: 3px solid #00ff41 !important;
           }
         `;
         document.head.appendChild(style);
       }
       
-      document.body.appendChild(floatingText);
+      document.body.appendChild(repairOverlay);
       
-      // Remove after animation
+      // Remove effect after animation
       setTimeout(() => {
-        if (floatingText.parentNode) {
-          floatingText.parentNode.removeChild(floatingText);
+        if (repairOverlay.parentNode) {
+          repairOverlay.parentNode.removeChild(repairOverlay);
         }
-      }, 2000);
+      }, 2500);
       
       // Create heal particles
       this._CreateHealParticles();
@@ -2417,6 +2784,143 @@ export const combat_system = (() => {
         damage: this._CalculateMonsterDamage(),
         health: GameConfig.formulas.enemyHealth(this._playerLevel)
       };
+    }
+
+    _speakQuestion(questionText) {
+      if ('speechSynthesis' in window) {
+        console.log('Tentative de lecture vocale:', questionText);
+        
+        // Arrêter toute lecture en cours
+        speechSynthesis.cancel();
+        
+        // Attendre un peu pour que le cancel soit effectif
+        setTimeout(() => {
+          // Créer un nouvel énoncé
+          const utterance = new SpeechSynthesisUtterance(questionText);
+          
+          // Configuration de la voix
+          utterance.lang = 'fr-FR'; // Français
+          utterance.rate = 0.8; // Vitesse de lecture
+          utterance.pitch = 1; // Tonalité
+          utterance.volume = 1.0; // Volume maximum
+          
+          // Événements pour le débogage
+          utterance.onstart = () => {
+            console.log('Lecture vocale démarrée');
+          };
+          
+          utterance.onend = () => {
+            console.log('Lecture vocale terminée');
+          };
+          
+          utterance.onerror = (event) => {
+            console.error('Erreur de lecture vocale:', event.error);
+            // Fallback: afficher une alerte visuelle
+            this._showAudioAlert(questionText);
+          };
+          
+          // Vérifier si des voix sont disponibles
+          const voices = speechSynthesis.getVoices();
+          if (voices.length > 0) {
+            // Chercher une voix française
+            const frenchVoice = voices.find(voice => voice.lang.startsWith('fr'));
+            if (frenchVoice) {
+              utterance.voice = frenchVoice;
+              console.log('Voix française trouvée:', frenchVoice.name);
+            }
+          }
+          
+          // Lancer la lecture
+          console.log('Lancement de speechSynthesis.speak()');
+          speechSynthesis.speak(utterance);
+          
+          // Vérification après un délai
+          setTimeout(() => {
+            if (speechSynthesis.speaking) {
+              console.log('Lecture en cours...');
+            } else {
+              console.warn('Aucune lecture détectée - possible problème');
+              this._showAudioAlert(questionText);
+            }
+          }, 500);
+          
+        }, 100);
+        
+      } else {
+        console.log('Synthèse vocale non supportée par ce navigateur');
+        this._showAudioAlert(questionText);
+      }
+    }
+    
+    _showAudioAlert(text) {
+      // Afficher une notification visuelle si l'audio ne fonctionne pas
+      const alertDiv = document.createElement('div');
+      alertDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #ff6b6b;
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        z-index: 10000;
+        max-width: 300px;
+        font-family: Arial, sans-serif;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      `;
+      alertDiv.innerHTML = `
+        <strong>🔊 Audio indisponible</strong><br>
+        <small>Activez le son ou vérifiez les paramètres audio</small><br>
+        <em>"${text}"</em>
+      `;
+      
+      document.body.appendChild(alertDiv);
+      
+      // Supprimer l'alerte après 5 secondes
+      setTimeout(() => {
+        if (alertDiv.parentNode) {
+          alertDiv.parentNode.removeChild(alertDiv);
+        }
+      }, 5000);
+    }
+
+    _speakQuestionForChildren(quiz) {
+      if (!quiz || !('speechSynthesis' in window)) {
+        console.log('🔇 Synthèse vocale non disponible');
+        return;
+      }
+      
+      console.log('🔊 Lecture pour enfants:', quiz.question);
+      
+      // Arrêter toute lecture en cours
+      speechSynthesis.cancel();
+      
+      setTimeout(() => {
+        // Préparer le texte pour enfants
+        let textToRead = `Voici ta question : ${quiz.question}`;
+        
+        // Ajouter les options pour les enfants
+        if (quiz.options && Array.isArray(quiz.options)) {
+          textToRead += `. Les réponses possibles sont : `;
+          quiz.options.forEach((option, index) => {
+            const letter = String.fromCharCode(65 + index); // A, B, C, D
+            textToRead += `${letter}: ${option}. `;
+          });
+        }
+        
+        // Créer l'utterance avec paramètres enfants
+        const utterance = new SpeechSynthesisUtterance(textToRead);
+        utterance.lang = 'fr-FR';
+        utterance.rate = 0.7;  // Plus lent pour les enfants
+        utterance.pitch = 1.3; // Voix plus aiguë
+        utterance.volume = 1.0; // Volume max
+        
+        utterance.onstart = () => console.log('🎤 Lecture démarrée pour enfants');
+        utterance.onend = () => console.log('✅ Lecture terminée');
+        utterance.onerror = (e) => console.error('❌ Erreur audio enfants:', e);
+        
+        speechSynthesis.speak(utterance);
+      }, 300);
     }
 
     get IsInCombat() {

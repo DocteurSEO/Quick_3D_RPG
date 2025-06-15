@@ -4,6 +4,7 @@
   <title>The Legend of SimonDev</title>
   <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
   <link rel="stylesheet" type="text/css" href="base.css">
+  <link rel="stylesheet" type="text/css" href="children-mode.css">
   <link rel="preconnect" href="https://fonts.gstatic.com">
   <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=IM+Fell+French+Canon+SC&display=swap" rel="stylesheet">
@@ -17,7 +18,7 @@
       <!-- Health bars at top -->
       <div class="health-overlay">
         <div class="health-bar-container player-health">
-          <span>PLAYER</span>
+          <span>JOUEUR</span>
           <div class="health-bar">
             <div id="player-health" class="health-fill"></div>
           </div>
@@ -32,9 +33,9 @@
       
       <!-- Main combat panel bottom right -->
       <div class="combat-panel">
-        <!-- Quiz section when active -->
+        <!-- Section quiz quand active -->
         <div id="quiz-section" class="quiz-section hidden">
-          <div class="quiz-question" id="quiz-question">What is 2 + 2?</div>
+          <div class="quiz-question" id="quiz-question">Qu'est-ce que 2 + 2 ?</div>
           <div class="quiz-options">
             <div class="quiz-option" data-answer="0">
               <span class="arrow" id="arrow-0">►</span>
@@ -55,9 +56,9 @@
           </div>
         </div>
         
-        <!-- Main action menu -->
+        <!-- Menu d'actions principal -->
         <div id="action-menu" class="action-menu">
-          <div class="menu-title">Choose your action:</div>
+          <div class="menu-title">Choisissez votre action :</div>
           <div class="menu-options">
             <div class="menu-option" data-action="quiz">
               <span class="arrow" id="arrow-quiz">►</span>
@@ -69,14 +70,14 @@
             </div>
             <div class="menu-option" data-action="heal">
               <span class="arrow" id="arrow-heal">►</span>
-              <span class="option-text">HEAL</span>
+              <span class="option-text">SOIN</span>
             </div>
           </div>
         </div>
         
-        <!-- Combat log -->
+        <!-- Journal de combat -->
         <div id="combat-log" class="combat-log">
-          <p>Ready for combat!</p>
+          <p>Prêt pour le combat !</p>
         </div>
       </div>
     </div>
