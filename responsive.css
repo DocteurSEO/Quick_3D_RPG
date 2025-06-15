@@ -12,18 +12,21 @@
 
 /* ===== TABLETTE - MODE PORTRAIT (768px - 1024px) ===== */
 @media screen and (min-width: 768px) and (max-width: 1024px) and (orientation: portrait) {
-  /* Combat Panel */
+  /* Combat Panel - Plus transparent pour tablette */
   .combat-panel {
     bottom: var(--tablet-padding) !important;
     right: var(--tablet-padding) !important;
     left: var(--tablet-padding) !important;
     width: auto !important;
     max-width: none !important;
-    padding: 20px !important;
+    padding: 18px !important;
     border-radius: var(--tablet-border-radius) !important;
     font-size: var(--tablet-font-size) !important;
-    max-height: 40vh !important;
+    max-height: 38vh !important;
     overflow-y: auto !important;
+    background: rgba(0, 0, 0, 0.8) !important;
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
   }
 
   /* Health Overlay */
@@ -77,17 +80,20 @@
 
 /* ===== TABLETTE - MODE PAYSAGE (768px - 1024px) ===== */
 @media screen and (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
-  /* Combat Panel - Plus compact en paysage */
+  /* Combat Panel - Plus transparent et compact en paysage */
   .combat-panel {
     bottom: var(--tablet-padding) !important;
     right: var(--tablet-padding) !important;
-    width: 45% !important;
-    max-width: 450px !important;
-    padding: 18px !important;
+    width: 42% !important;
+    max-width: 420px !important;
+    padding: 16px !important;
     border-radius: var(--tablet-border-radius) !important;
     font-size: var(--tablet-font-size) !important;
-    max-height: 60vh !important;
+    max-height: 55vh !important;
     overflow-y: auto !important;
+    background: rgba(0, 0, 0, 0.78) !important;
+    backdrop-filter: blur(5px) !important;
+    -webkit-backdrop-filter: blur(5px) !important;
   }
 
   /* Health Overlay - Reste en haut */
@@ -125,7 +131,7 @@
 
 /* ===== MOBILE - MODE PORTRAIT (jusqu'à 767px) ===== */
 @media screen and (max-width: 767px) and (orientation: portrait) {
-  /* Combat Panel - Pleine largeur en bas */
+  /* Combat Panel - Plus transparent et adaptatif */
   .combat-panel {
     bottom: 0 !important;
     right: 0 !important;
@@ -135,41 +141,52 @@
     padding: var(--mobile-padding) !important;
     border-radius: 15px 15px 0 0 !important;
     font-size: var(--mobile-font-size) !important;
-    max-height: 50vh !important;
+    max-height: 45vh !important;
     overflow-y: auto !important;
     border-bottom: none !important;
+    background: rgba(0, 0, 0, 0.75) !important;
+    backdrop-filter: blur(5px) !important;
+    -webkit-backdrop-filter: blur(5px) !important;
   }
 
-  /* Health Overlay - Adapté pour mobile */
+  /* Health Overlay - Plus transparent et compact */
   .health-overlay {
     top: var(--mobile-padding) !important;
-    gap: 15px !important;
-    flex-direction: column !important;
+    gap: 10px !important;
+    flex-direction: row !important;
     align-items: center !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
   }
 
   .health-bar-container {
-    min-width: 140px !important;
-    padding: 8px 12px !important;
+    min-width: 130px !important;
+    padding: 6px 10px !important;
+    background: rgba(0, 0, 0, 0.7) !important;
+    backdrop-filter: blur(3px) !important;
+    -webkit-backdrop-filter: blur(3px) !important;
   }
 
   .health-bar-container span {
-    font-size: 14px !important;
+    font-size: 12px !important;
   }
 
   .health-bar {
-    width: 120px !important;
-    height: 12px !important;
+    width: 110px !important;
+    height: 10px !important;
   }
 
-  /* Player Stats - Repositionné */
+  /* Player Stats - Plus transparent et repositionné */
   #player-stats {
     top: auto !important;
-    bottom: 60vh !important;
+    bottom: 50vh !important;
     left: var(--mobile-padding) !important;
-    padding: 8px !important;
-    min-width: 140px !important;
-    font-size: 0.8em !important;
+    padding: 6px !important;
+    min-width: 120px !important;
+    font-size: 0.75em !important;
+    background: rgba(0, 0, 0, 0.65) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
   }
 
   #player-level {
@@ -231,49 +248,58 @@
 
 /* ===== MOBILE - MODE PAYSAGE (jusqu'à 767px) ===== */
 @media screen and (max-width: 767px) and (orientation: landscape) {
-  /* Combat Panel - Côté droit en paysage */
+  /* Combat Panel - Plus transparent et adaptatif en paysage */
   .combat-panel {
     bottom: var(--mobile-padding) !important;
     right: var(--mobile-padding) !important;
     left: auto !important;
-    width: 50% !important;
-    max-width: 350px !important;
-    padding: var(--mobile-padding) !important;
+    width: 45% !important;
+    max-width: 320px !important;
+    padding: 8px !important;
     border-radius: var(--mobile-border-radius) !important;
     font-size: var(--mobile-font-size) !important;
-    max-height: 70vh !important;
+    max-height: 65vh !important;
     overflow-y: auto !important;
+    background: rgba(0, 0, 0, 0.7) !important;
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
   }
 
-  /* Health Overlay - Horizontal en paysage */
+  /* Health Overlay - Plus transparent en paysage */
   .health-overlay {
     top: var(--mobile-padding) !important;
-    gap: 20px !important;
+    gap: 15px !important;
     flex-direction: row !important;
   }
 
   .health-bar-container {
-    min-width: 120px !important;
-    padding: 6px 10px !important;
+    min-width: 110px !important;
+    padding: 4px 8px !important;
+    background: rgba(0, 0, 0, 0.65) !important;
+    backdrop-filter: blur(3px) !important;
+    -webkit-backdrop-filter: blur(3px) !important;
   }
 
   .health-bar-container span {
-    font-size: 12px !important;
+    font-size: 11px !important;
   }
 
   .health-bar {
-    width: 100px !important;
-    height: 10px !important;
+    width: 90px !important;
+    height: 8px !important;
   }
 
-  /* Player Stats - Côté gauche */
+  /* Player Stats - Plus transparent côté gauche */
   #player-stats {
     top: var(--mobile-padding) !important;
     left: var(--mobile-padding) !important;
     bottom: auto !important;
-    padding: 6px !important;
-    min-width: 120px !important;
-    font-size: 0.75em !important;
+    padding: 4px !important;
+    min-width: 100px !important;
+    font-size: 0.7em !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(3px) !important;
+    -webkit-backdrop-filter: blur(3px) !important;
   }
 
   #player-level {
@@ -320,35 +346,45 @@
 
 /* ===== TRÈS PETITS ÉCRANS (moins de 480px) ===== */
 @media screen and (max-width: 480px) {
-  /* Ajustements supplémentaires pour très petits écrans */
+  /* Ajustements supplémentaires pour très petits écrans - Ultra transparent */
   .health-overlay {
-    gap: 10px !important;
+    gap: 8px !important;
   }
 
   .health-bar-container {
-    min-width: 100px !important;
-    padding: 6px 8px !important;
+    min-width: 90px !important;
+    padding: 4px 6px !important;
+    background: rgba(0, 0, 0, 0.6) !important;
+    backdrop-filter: blur(2px) !important;
+    -webkit-backdrop-filter: blur(2px) !important;
   }
 
   .health-bar {
-    width: 80px !important;
-    height: 8px !important;
+    width: 70px !important;
+    height: 6px !important;
   }
 
   #player-stats {
-    min-width: 100px !important;
-    padding: 6px !important;
-    font-size: 0.7em !important;
+    min-width: 90px !important;
+    padding: 4px !important;
+    font-size: 0.65em !important;
+    background: rgba(0, 0, 0, 0.55) !important;
+    backdrop-filter: blur(2px) !important;
+    -webkit-backdrop-filter: blur(2px) !important;
   }
 
   .combat-panel {
-    padding: 8px !important;
-    font-size: 0.8em !important;
+    padding: 6px !important;
+    font-size: 0.75em !important;
+    background: rgba(0, 0, 0, 0.7) !important;
+    backdrop-filter: blur(3px) !important;
+    -webkit-backdrop-filter: blur(3px) !important;
+    max-height: 40vh !important;
   }
 
   .quiz-option, .menu-option {
-    padding: 12px 8px !important;
-    font-size: 0.85em !important;
+    padding: 10px 6px !important;
+    font-size: 0.8em !important;
   }
 }
 
@@ -405,20 +441,57 @@
   }
 }
 
+/* ===== ADAPTATION AUTOMATIQUE INTELLIGENTE ===== */
+@media screen and (max-width: 1024px) {
+  /* Adaptation fluide pour tous les écrans moyens et petits */
+  .combat-panel {
+    transition: all 0.3s ease !important;
+  }
+  
+  .health-overlay {
+    transition: all 0.3s ease !important;
+  }
+  
+  #player-stats {
+    transition: all 0.3s ease !important;
+  }
+}
+
+/* ===== ÉCRANS ULTRA-LARGES (plus de 1440px) ===== */
+@media screen and (min-width: 1440px) {
+  .combat-panel {
+    max-width: 500px !important;
+    font-size: 1.1em !important;
+  }
+  
+  .health-bar-container {
+    min-width: 220px !important;
+    padding: 18px 25px !important;
+  }
+  
+  .health-bar {
+    width: 200px !important;
+    height: 20px !important;
+  }
+}
+
 /* ===== ACCESSIBILITÉ ===== */
 @media (prefers-contrast: high) {
   /* Améliorer le contraste pour l'accessibilité */
   .combat-panel {
     border-width: 3px !important;
     border-color: #ffffff !important;
+    background: rgba(0, 0, 0, 0.95) !important;
   }
 
   .health-bar-container {
     border-width: 2px !important;
     border-color: #ffffff !important;
+    background: rgba(0, 0, 0, 0.9) !important;
   }
 
   .quiz-option, .menu-option {
-    border: 2px solid rgba(255, 255, 255, 0.8) !important;
+    border: 2px solid rgba(255, 255, 255, 0.9) !important;
+    background: rgba(0, 0, 0, 0.8) !important;
   }
 }
